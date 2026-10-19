@@ -17,10 +17,11 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     authenticated: true,
     user: {
+      id: session.adminId,
       adminId: session.adminId,
       username: session.username,
       name: session.name,
-      role: session.role,
+      role: session.role || 'user',
     },
   });
 }

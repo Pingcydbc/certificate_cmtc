@@ -10,6 +10,8 @@ import {
   Eye,
   EyeOff,
   ArrowRight,
+  Sparkles,
+  KeyRound,
   AlertCircle,
   Home
 } from 'lucide-react';
@@ -58,6 +60,11 @@ function LoginForm() {
     }
   };
 
+  const fillDefaultCredentials = () => {
+    setUsername('admin');
+    setPassword('admin1234');
+    setError(null);
+  };
 
   return (
     <div className="w-full max-w-md space-y-6">
@@ -161,7 +168,21 @@ function LoginForm() {
           </button>
         </form>
 
-
+        {/* Quick Credential Helper Pill */}
+        <div className="mt-6 pt-5 border-t border-slate-100 flex flex-col items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-1.5 text-slate-600">
+            <KeyRound className="w-3.5 h-3.5 text-red-700" />
+            <span>บัญชีเริ่มต้น: <strong>admin</strong> / <strong>admin1234</strong></span>
+          </div>
+          <button
+            type="button"
+            onClick={fillDefaultCredentials}
+            className="text-red-700 hover:text-red-800 hover:underline font-bold text-[11px] flex items-center gap-1 transition-colors"
+          >
+            <Sparkles className="w-3 h-3" />
+            คลิกเพื่อกรอกข้อมูลเริ่มต้นอัตโนมัติ
+          </button>
+        </div>
       </div>
 
       {/* Back to Home Link */}

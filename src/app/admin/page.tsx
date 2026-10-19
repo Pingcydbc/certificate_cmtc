@@ -58,6 +58,18 @@ export default function AdminDashboardPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [currentUser, setCurrentUser] = useState<{ id: string; username: string; role: string } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.authenticated && data.user) {
+          setCurrentUser(data.user);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const handleLogout = async () => {
     if (!confirm('ยืนยันการออกจากระบบผู้ดูแล?')) return;
@@ -158,6 +170,15 @@ export default function AdminDashboardPage() {
         </div>
 
         <div className="flex items-center gap-3">
+          {currentUser?.role === 'admin' && (
+            <Link
+              href="/admin/users"
+              className="px-4 py-2.5 rounded-xl bg-white hover:bg-red-50 text-slate-700 hover:text-red-700 border border-slate-200 hover:border-red-200 font-bold text-xs sm:text-sm flex items-center gap-1.5 shadow-xs transition-all"
+            >
+              <Users className="w-4 h-4 text-red-700" />
+              <span>จัดการผู้ใช้งาน</span>
+            </Link>
+          )}
           <Link
             href="/admin/project/new"
             className="px-5 py-2.5 rounded-xl bg-cmtc-800 hover:bg-cmtc-900 text-white font-bold text-sm flex items-center gap-2 shadow-md shadow-red-900/15 transition-all hover:scale-[1.02] active:scale-[0.98]"
