@@ -123,11 +123,11 @@ export default function CertificateDetailPage() {
       {/* Top breadcrumb & back */}
       <div className="flex items-center justify-between gap-4 mb-6">
         <Link
-          href={`/search?projectId=${recipient.project.id}`}
+          href="/"
           className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-cmtc-800 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          กลับไปรายชื่อเกียรติบัตร
+          กลับสู่หน้าหลัก
         </Link>
 
         <div className="flex items-center gap-2">

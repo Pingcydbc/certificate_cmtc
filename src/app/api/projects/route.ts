@@ -52,6 +52,14 @@ export async function GET(request: NextRequest) {
               height: true,
             },
           },
+          createdBy: {
+            select: {
+              id: true,
+              username: true,
+              name: true,
+              role: true,
+            },
+          },
           _count: {
             select: { recipients: true },
           },
@@ -121,6 +129,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Identify creator from session
+    const { verifySessionToken, ADMIN_COOKIE_NAME } = await import('@/lib/auth');
+    const token = request.cookies.get(ADMIN_COOKIE_NAME)?.value;
+    const session = token ? verifySessionToken(token) : null;
+    const createdById = session?.adminId || null;
+
     const project = await prisma.project.create({
       data: {
         code: code.trim(),
@@ -129,6 +143,7 @@ export async function POST(request: NextRequest) {
         eventDate: eventDate?.trim() || null,
         location: location?.trim() || null,
         isActive: true,
+        createdById: createdById,
         template: {
           create: {
             backgroundImage: backgroundImage || '/uploads/NSDV01.jpg',

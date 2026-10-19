@@ -20,7 +20,8 @@ import {
   Layers,
   ArrowRight,
   SlidersHorizontal,
-  LogOut
+  LogOut,
+  User
 } from 'lucide-react';
 import Pagination from '@/components/Pagination';
 
@@ -33,6 +34,13 @@ interface AdminProject {
   location: string | null;
   isActive: boolean;
   createdAt: string;
+  createdById?: string | null;
+  createdBy?: {
+    id: string;
+    username: string;
+    name?: string | null;
+    role: string;
+  } | null;
   _count: {
     recipients: number;
   };
@@ -339,6 +347,10 @@ export default function AdminDashboardPage() {
                         {project.location}
                       </span>
                     )}
+                    <span className="flex items-center gap-1 text-[11px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                      <User className="w-3 h-3 text-slate-400" />
+                      <span>สร้างโดย: <strong className="text-slate-700">{project.createdBy?.name || project.createdBy?.username || 'ผู้ดูแลระบบ'}</strong></span>
+                    </span>
                   </div>
 
                   {/* Matched Recipients (when searching by person's name) */}
@@ -399,14 +411,34 @@ export default function AdminDashboardPage() {
                     <span>จัดการ Excel ({project._count.recipients})</span>
                   </Link>
 
-                  {/* Delete Button */}
-                  <button
-                    onClick={() => handleDeleteProject(project.id, project.title)}
-                    className="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100 transition-all"
-                    title="ลบโครงการ"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {/* Delete Button (Admin can delete any, User can delete only their own) */}
+                  {(() => {
+                    const canDelete =
+                      currentUser?.role === 'admin' ||
+                      (Boolean(currentUser?.id) && project.createdById === currentUser?.id);
+
+                    if (canDelete) {
+                      return (
+                        <button
+                          onClick={() => handleDeleteProject(project.id, project.title)}
+                          className="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100 transition-all"
+                          title="ลบโครงการ"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      );
+                    }
+
+                    return (
+                      <button
+                        disabled
+                        className="p-2 rounded-xl text-slate-200 cursor-not-allowed opacity-50"
+                        title="คุณไม่มีสิทธิ์ลบโครงการนี้ (ลบได้เฉพาะโครงการที่ตนเองสร้าง)"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    );
+                  })()}
                 </div>
               </div>
             </div>

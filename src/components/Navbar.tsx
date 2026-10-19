@@ -4,22 +4,32 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   Award,
-  Search,
+  Home,
   FolderKanban,
   ShieldCheck,
   Menu,
   X,
   PlusCircle,
   LogOut,
-  UserCheck
+  UserCheck,
+  Users,
+  Lock,
+  User
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
+
+interface AuthUser {
+  id: string;
+  username: string;
+  name?: string;
+  role: string;
+}
 
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [adminUser, setAdminUser] = useState<{ username: string; name?: string } | null>(null);
+  const [adminUser, setAdminUser] = useState<AuthUser | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
 
   // Check auth status
@@ -41,7 +51,7 @@ export default function Navbar() {
   }, [pathname]);
 
   const handleLogout = async () => {
-    if (!confirm('ยืนยันการออกจากระบบผู้ดูแล?')) return;
+    if (!confirm('ยืนยันการออกจากระบบ?')) return;
     try {
       setLoggingOut(true);
       await fetch('/api/auth/logout', { method: 'POST' });
@@ -55,11 +65,18 @@ export default function Navbar() {
     }
   };
 
-  const navLinks = [
-    { href: '/', label: 'โครงการทั้งหมด', icon: FolderKanban },
-    { href: '/search', label: 'ค้นหาเกียรติบัตร', icon: Search },
-    { href: '/admin', label: 'จัดการระบบ (Admin)', icon: ShieldCheck },
-  ];
+  // Nav links based on auth state
+  const navLinks = adminUser
+    ? [
+        { href: '/', label: 'หน้าแรก', icon: Home },
+        { href: '/admin', label: 'จัดการระบบ', icon: FolderKanban },
+        ...(adminUser.role === 'admin'
+          ? [{ href: '/admin/users', label: 'จัดการผู้ใช้งาน', icon: Users }]
+          : []),
+      ]
+    : [
+        { href: '/', label: 'หน้าแรก', icon: Home },
+      ];
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';
@@ -93,7 +110,7 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop Nav */}
-          <nav className="hidden md:flex items-center gap-1.5">
+          <nav className="hidden md:flex items-center gap-2">
             {navLinks.map((link) => {
               const Icon = link.icon;
               const active = isActive(link.href);
@@ -101,10 +118,11 @@ export default function Navbar() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all ${active
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
+                    active
                       ? 'bg-red-700 text-white shadow-sm shadow-red-700/20'
                       : 'text-slate-600 hover:text-red-700 hover:bg-red-50/70'
-                    }`}
+                  }`}
                 >
                   <Icon className={`w-4 h-4 ${active ? 'text-white' : 'text-slate-400'}`} />
                   {link.label}
@@ -112,33 +130,54 @@ export default function Navbar() {
               );
             })}
 
-            <div className="h-6 w-px bg-slate-200 mx-1.5" />
+            {/* If Authenticated: Show Create Project and User Actions */}
+            {adminUser ? (
+              <>
+                <div className="h-6 w-px bg-slate-200 mx-1.5" />
 
-            <Link
-              href="/admin/project/new"
-              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-red-700 to-red-600 hover:from-red-800 hover:to-red-700 text-white shadow-sm shadow-red-700/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
-            >
-              <PlusCircle className="w-3.5 h-3.5 text-white" />
-              สร้างโครงการใหม่
-            </Link>
-
-            {/* Admin User / Logout Button */}
-            {adminUser && (
-              <div className="flex items-center gap-2 ml-2 pl-2 border-l border-slate-200">
-                <span className="text-xs text-slate-600 hidden lg:inline flex items-center gap-1 bg-slate-100 px-2.5 py-1.5 rounded-xl border border-slate-200">
-                  <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
-                  <strong className="text-slate-800">{adminUser.username}</strong>
-                </span>
-                <button
-                  onClick={handleLogout}
-                  disabled={loggingOut}
-                  title="ออกจากระบบ"
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-slate-500 hover:text-red-700 hover:bg-red-50 border border-transparent hover:border-red-200 transition-all"
+                <Link
+                  href="/admin/project/new"
+                  className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-red-700 to-red-600 hover:from-red-800 hover:to-red-700 text-white shadow-sm shadow-red-700/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  <LogOut className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">ออกระบบ</span>
-                </button>
-              </div>
+                  <PlusCircle className="w-3.5 h-3.5 text-white" />
+                  สร้างโครงการใหม่
+                </Link>
+
+                <div className="flex items-center gap-2 ml-2 pl-2 border-l border-slate-200">
+                  <span className="text-xs text-slate-600 flex items-center gap-1.5 bg-slate-100 px-2.5 py-1.5 rounded-xl border border-slate-200">
+                    <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
+                    <strong className="text-slate-800">{adminUser.username}</strong>
+                    {adminUser.role === 'admin' ? (
+                      <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-red-100 text-red-700 border border-red-200">
+                        Admin
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-slate-200 text-slate-700">
+                        เจ้าหน้าที่
+                      </span>
+                    )}
+                  </span>
+                  <button
+                    onClick={handleLogout}
+                    disabled={loggingOut}
+                    title="ออกจากระบบ"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-slate-500 hover:text-red-700 hover:bg-red-50 border border-transparent hover:border-red-200 transition-all"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">ออกระบบ</span>
+                  </button>
+                </div>
+              </>
+            ) : (
+              /* If Guest: Subtle login link */
+              <Link
+                href="/admin/login"
+                className="flex items-center gap-1.5 ml-2 px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-red-700 hover:bg-slate-100 rounded-xl transition-colors"
+                title="เข้าสู่ระบบสำหรับเจ้าหน้าที่"
+              >
+                <Lock className="w-3.5 h-3.5 text-slate-400" />
+                <span>สำหรับเจ้าหน้าที่</span>
+              </Link>
             )}
           </nav>
 
@@ -158,51 +197,78 @@ export default function Navbar() {
       {/* Mobile Nav dropdown */}
       {mobileMenuOpen && (
         <div className="md:hidden bg-white border-b border-slate-200 px-4 pt-2 pb-4 space-y-1 shadow-lg">
-          {adminUser && (
-            <div className="flex items-center justify-between p-2.5 mb-2 rounded-xl bg-slate-50 border border-slate-200 text-xs">
-              <span className="text-slate-700 flex items-center gap-1.5">
-                <UserCheck className="w-4 h-4 text-emerald-600" />
-                เข้าสู่ระบบโดย: <strong className="text-slate-900">{adminUser.username}</strong>
-              </span>
-              <button
-                onClick={handleLogout}
-                className="text-red-700 font-bold hover:underline flex items-center gap-1"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                ออกจากระบบ
-              </button>
-            </div>
-          )}
+          {adminUser ? (
+            <>
+              <div className="flex items-center justify-between p-2.5 mb-2 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                <span className="text-slate-700 flex items-center gap-1.5">
+                  <UserCheck className="w-4 h-4 text-emerald-600" />
+                  <span>{adminUser.username}</span>
+                  <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-red-100 text-red-700">
+                    {adminUser.role === 'admin' ? 'Admin' : 'เจ้าหน้าที่'}
+                  </span>
+                </span>
+                <button
+                  onClick={handleLogout}
+                  className="text-red-700 font-bold hover:underline flex items-center gap-1"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  ออกจากระบบ
+                </button>
+              </div>
 
-          {navLinks.map((link) => {
-            const Icon = link.icon;
-            const active = isActive(link.href);
-            return (
+              {navLinks.map((link) => {
+                const Icon = link.icon;
+                const active = isActive(link.href);
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold ${
+                      active
+                        ? 'bg-red-700 text-white shadow-sm'
+                        : 'text-slate-700 hover:bg-red-50 hover:text-red-700'
+                    }`}
+                  >
+                    <Icon className={`w-5 h-5 ${active ? 'text-white' : 'text-slate-400'}`} />
+                    {link.label}
+                  </Link>
+                );
+              })}
+
+              <div className="pt-2">
+                <Link
+                  href="/admin/project/new"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center justify-center gap-2 w-full py-2.5 text-sm font-bold rounded-xl bg-gradient-to-r from-red-700 to-red-600 text-white shadow-sm"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  สร้างโครงการใหม่
+                </Link>
+              </div>
+            </>
+          ) : (
+            <>
               <Link
-                key={link.href}
-                href={link.href}
+                href="/"
                 onClick={() => setMobileMenuOpen(false)}
-                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold ${active
-                    ? 'bg-red-700 text-white shadow-sm'
-                    : 'text-slate-700 hover:bg-red-50 hover:text-red-700'
-                  }`}
+                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold ${
+                  pathname === '/' ? 'bg-red-700 text-white' : 'text-slate-700 hover:bg-red-50'
+                }`}
               >
-                <Icon className={`w-5 h-5 ${active ? 'text-white' : 'text-slate-400'}`} />
-                {link.label}
+                <Home className="w-5 h-5" />
+                หน้าแรก
               </Link>
-            );
-          })}
-
-          <div className="pt-2">
-            <Link
-              href="/admin/project/new"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center justify-center gap-2 w-full py-2.5 text-sm font-bold rounded-xl bg-gradient-to-r from-red-700 to-red-600 text-white shadow-sm"
-            >
-              <PlusCircle className="w-4 h-4" />
-              สร้างโครงการใหม่
-            </Link>
-          </div>
+              <Link
+                href="/admin/login"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                <Lock className="w-5 h-5 text-slate-400" />
+                เข้าสู่ระบบสำหรับเจ้าหน้าที่
+              </Link>
+            </>
+          )}
         </div>
       )}
     </header>
