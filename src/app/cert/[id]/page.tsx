@@ -6,7 +6,6 @@ import { useParams } from 'next/navigation';
 import {
   Award,
   Download,
-  Printer,
   Share2,
   CheckCircle2,
   ShieldCheck,
@@ -74,11 +73,6 @@ export default function CertificateDetailPage() {
     }
   };
 
-  const handlePrint = () => {
-    if (typeof window !== 'undefined') {
-      window.print();
-    }
-  };
 
   if (loading) {
     return (
@@ -137,13 +131,6 @@ export default function CertificateDetailPage() {
           >
             {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-slate-500" />}
             {copied ? 'คัดลอกลิงก์แล้ว' : 'คัดลอกลิงก์ตรวจสอบ'}
-          </button>
-          <button
-            onClick={handlePrint}
-            className="px-3.5 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium border border-slate-200 flex items-center gap-1.5 transition-colors shadow-xs hidden sm:flex"
-          >
-            <Printer className="w-3.5 h-3.5 text-cmtc-800" />
-            พิมพ์
           </button>
         </div>
       </div>
