@@ -1,0 +1,38 @@
+version: '3.8'
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cert_web
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres_password@db:5432/cert_db?schema=public
+      - NODE_ENV=production
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - uploads_data:/app/public/uploads
+  db:
+    image: postgres:16-alpine
+    container_name: cert_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_password
+      POSTGRES_DB: cert_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+volumes:
+  postgres_data:
+  uploads_data:
