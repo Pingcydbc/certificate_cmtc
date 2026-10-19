@@ -93,6 +93,43 @@ function resolveImagePath(imgPath: string): string {
   return imgPath;
 }
 
+async function loadServerImage(imgPathOrUrl: string): Promise<any> {
+  if (!imgPathOrUrl) return null;
+
+  if (imgPathOrUrl.startsWith('data:')) {
+    try {
+      return await loadImage(imgPathOrUrl);
+    } catch (e) {
+      console.warn('Failed to load data URL:', e);
+      return null;
+    }
+  }
+
+  if (imgPathOrUrl.startsWith('http://') || imgPathOrUrl.startsWith('https://')) {
+    try {
+      const res = await fetch(imgPathOrUrl);
+      if (res.ok) {
+        const buf = Buffer.from(await res.arrayBuffer());
+        return await loadImage(buf);
+      }
+    } catch (e) {
+      console.warn(`Failed to fetch remote image ${imgPathOrUrl}:`, e);
+      return null;
+    }
+  }
+
+  const fullImgPath = resolveImagePath(imgPathOrUrl);
+  if (fs.existsSync(fullImgPath)) {
+    try {
+      return await loadImage(fullImgPath);
+    } catch (err) {
+      console.warn(`Failed to render local image ${fullImgPath}:`, err);
+    }
+  }
+
+  return null;
+}
+
 export async function renderCertificateCanvas(params: RenderCertificateParams) {
   registerCustomFonts();
 
@@ -103,11 +140,13 @@ export async function renderCertificateCanvas(params: RenderCertificateParams) {
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext('2d');
 
-  // Load Background Image
-  const bgImgPath = resolveImagePath(template.backgroundImage);
+  // Load Background Image (Supports local path or remote URL)
+  let bgImage: any = null;
+  if (template.backgroundImage) {
+    bgImage = await loadServerImage(template.backgroundImage);
+  }
 
-  if (fs.existsSync(bgImgPath)) {
-    const bgImage = await loadImage(bgImgPath);
+  if (bgImage) {
     ctx.drawImage(bgImage, 0, 0, width, height);
   } else {
     // Fallback: elegant certificate background
@@ -142,23 +181,7 @@ export async function renderCertificateCanvas(params: RenderCertificateParams) {
       }
 
       if (imgPathOrUrl) {
-        let loadedImg: any = null;
-        if (imgPathOrUrl.startsWith('data:')) {
-          try {
-            loadedImg = await loadImage(imgPathOrUrl);
-          } catch (e) {
-            console.warn('Failed to load data URL:', e);
-          }
-        } else {
-          const fullImgPath = resolveImagePath(imgPathOrUrl);
-          if (fs.existsSync(fullImgPath)) {
-            try {
-              loadedImg = await loadImage(fullImgPath);
-            } catch (err) {
-              console.warn(`Failed to render element image ${fullImgPath}:`, err);
-            }
-          }
-        }
+        const loadedImg = await loadServerImage(imgPathOrUrl);
 
         if (loadedImg) {
           const imgW = Math.round((el.width || 120) * scale);

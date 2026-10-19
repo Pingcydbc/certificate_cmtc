@@ -165,6 +165,7 @@ function LoginForm() {
                 <ArrowRight className="w-4 h-4" />
               </>
             )}
+          </button>
         </form>
 
         {/* Quick Credential Helper Pill */}
