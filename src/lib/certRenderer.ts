@@ -246,7 +246,10 @@ export async function renderCertificateCanvas(params: RenderCertificateParams) {
     // 2. QR Code Element (Dynamic Verification)
     if (el.elementType === 'qrcode') {
       try {
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+        const baseUrl =
+          process.env.NEXT_PUBLIC_BASE_URL ||
+          process.env.NEXT_PUBLIC_APP_URL ||
+          (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://cmtc.ac.th');
         const recId = recipient.id || '';
         const qrUrl = el.defaultValue ? el.defaultValue.replace(/{certId}/g, recId) : `${baseUrl}/cert/${recId}`;
         const qrBuffer = await QRCode.toBuffer(qrUrl, {
