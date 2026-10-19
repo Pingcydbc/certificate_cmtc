@@ -6,17 +6,11 @@ import {
   Search,
   Award,
   Calendar,
-  ExternalLink,
   Download,
-  FileCheck2,
   Sparkles,
-  ShieldCheck,
   Building2,
-  CheckCircle2,
   FolderKanban,
-  FileText,
   AlertCircle,
-  QrCode
 } from 'lucide-react';
 import SearchBar from '@/components/SearchBar';
 import Pagination from '@/components/Pagination';
@@ -95,13 +89,19 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen pb-24 bg-slate-50">
+    <div className="w-full flex-1 flex flex-col">
       {/* Hero Section with Search */}
-      <section className="relative overflow-hidden pt-12 pb-16 px-4 sm:px-6 lg:px-8 border-b border-slate-200/80 bg-gradient-to-b from-red-50/70 via-white to-slate-50">
+      <section
+        className={`relative overflow-hidden w-full flex flex-col justify-center transition-all duration-300 ${
+          hasSearched
+            ? 'pt-8 pb-8 px-4 sm:px-6 lg:px-8 border-b border-slate-200/80 bg-white'
+            : 'flex-1 py-12 sm:py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-red-50/70 via-white to-slate-50'
+        }`}
+      >
         {/* Glow backdrop */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-red-600/5 blur-[120px] rounded-full pointer-events-none" />
 
-        <div className="max-w-4xl mx-auto text-center relative z-10">
+        <div className="max-w-4xl mx-auto text-center relative z-10 w-full">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-red-50 border border-red-200 text-red-800 text-xs font-bold mb-6 shadow-2xs">
             <Sparkles className="w-3.5 h-3.5 text-red-600" />
             ระบบบริการเกียรติบัตรออนไลน์ วิทยาลัยเทคนิคเชียงใหม่ (CMTC)
@@ -150,47 +150,12 @@ export default function HomePage() {
               <span className="text-slate-600">ค้นหาด้วย <strong>ชื่อ-นามสกุล</strong> เช่น <em>&quot;สมชาย&quot;</em> หรือ <strong>เลขที่เกียรติบัตร</strong></span>
             </div>
           </div>
-
-          {/* Quick Feature Pills */}
-          {!hasSearched && (
-            <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
-              <div className="bg-white border border-slate-200/90 p-4 rounded-2xl shadow-xs flex items-center gap-3.5">
-                <div className="w-11 h-11 rounded-xl bg-red-50 border border-red-100 flex items-center justify-center shrink-0">
-                  <Search className="w-5 h-5 text-red-700" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900">ค้นหาชื่อตรงทุกโครงการ</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">รวมเกียรติบัตรทั้งหมดของคุณไว้ในที่เดียว</p>
-                </div>
-              </div>
-
-              <div className="bg-white border border-slate-200/90 p-4 rounded-2xl shadow-xs flex items-center gap-3.5">
-                <div className="w-11 h-11 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0">
-                  <QrCode className="w-5 h-5 text-emerald-600" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900">QR Code ตรวจสอบได้จริง</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">สแกนตรวจสอบความถูกต้องออนไลน์ได้ 24 ชม.</p>
-                </div>
-              </div>
-
-              <div className="bg-white border border-slate-200/90 p-4 rounded-2xl shadow-xs flex items-center gap-3.5">
-                <div className="w-11 h-11 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center shrink-0">
-                  <Download className="w-5 h-5 text-rose-600" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900">ดาวน์โหลด PDF / PNG</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">ไฟล์คมชัดมาตรฐาน สำหรับนำไปใช้งาน</p>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </section>
 
       {/* Search Results Area */}
       {hasSearched && (
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 space-y-6">
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-10 space-y-6 flex-1 w-full">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-2 border-b border-slate-200">
             <div>
               <h2 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2">
