@@ -44,23 +44,46 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 2. Local filesystem storage (Local dev or Docker server)
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
+    // 2. If running on Vercel / serverless without Blob Token, use Base64 Data URL
+    if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+      const base64Data = `data:${file.type};base64,${buffer.toString('base64')}`;
+      return NextResponse.json({
+        success: true,
+        url: base64Data,
+        filename,
+      });
     }
 
-    const filePath = path.join(uploadDir, filename);
-    fs.writeFileSync(filePath, buffer);
+    // 3. Local filesystem storage (Local dev or Docker server)
+    try {
+      const uploadDir = path.join(process.cwd(), 'public', 'uploads');
 
-    const publicUrl = `/uploads/${filename}`;
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
 
-    return NextResponse.json({
-      success: true,
-      url: publicUrl,
-      filename,
-    });
+      const filePath = path.join(uploadDir, filename);
+      fs.writeFileSync(filePath, buffer);
+
+      const publicUrl = `/uploads/${filename}`;
+
+      return NextResponse.json({
+        success: true,
+        url: publicUrl,
+        filename,
+      });
+    } catch (fsErr: any) {
+      // If filesystem is read-only (EROFS), fall back to Base64
+      if (fsErr.code === 'EROFS' || fsErr.message?.includes('read-only')) {
+        const base64Data = `data:${file.type};base64,${buffer.toString('base64')}`;
+        return NextResponse.json({
+          success: true,
+          url: base64Data,
+          filename,
+        });
+      }
+      throw fsErr;
+    }
   } catch (error: any) {
     console.error('Error uploading file:', error);
     return NextResponse.json(

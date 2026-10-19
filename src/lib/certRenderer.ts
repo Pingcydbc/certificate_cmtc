@@ -127,6 +127,26 @@ async function loadServerImage(imgPathOrUrl: string): Promise<any> {
     }
   }
 
+  // If local file wasn't found (e.g. running on Vercel serverless), try fetching via public URL
+  if (imgPathOrUrl.startsWith('/')) {
+    const baseUrl =
+      process.env.NEXT_PUBLIC_BASE_URL ||
+      process.env.NEXT_PUBLIC_APP_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '');
+    if (baseUrl) {
+      try {
+        const fullUrl = `${baseUrl.replace(/\/$/, '')}${imgPathOrUrl}`;
+        const res = await fetch(fullUrl);
+        if (res.ok) {
+          const buf = Buffer.from(await res.arrayBuffer());
+          return await loadImage(buf);
+        }
+      } catch (e) {
+        console.warn(`Failed to fetch relative image via base URL ${imgPathOrUrl}:`, e);
+      }
+    }
+  }
+
   return null;
 }
 
