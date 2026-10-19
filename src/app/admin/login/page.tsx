@@ -111,8 +111,8 @@ function LoginForm() {
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder=""
-                autoComplete=""
+                placeholder="admin"
+                autoComplete="username"
                 autoFocus
                 required
                 className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 focus:bg-white focus:border-red-600 focus:ring-2 focus:ring-red-100 rounded-xl text-sm text-slate-900 placeholder-slate-400 transition-all outline-none"
@@ -165,8 +165,23 @@ function LoginForm() {
                 <ArrowRight className="w-4 h-4" />
               </>
             )}
-          </button>
         </form>
+
+        {/* Quick Credential Helper Pill */}
+        <div className="mt-6 pt-5 border-t border-slate-100 flex flex-col items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-1.5 text-slate-600">
+            <KeyRound className="w-3.5 h-3.5 text-red-700" />
+            <span>บัญชีเริ่มต้น: <strong>admin</strong> / <strong>admin1234</strong></span>
+          </div>
+          <button
+            type="button"
+            onClick={fillDefaultCredentials}
+            className="text-red-700 hover:text-red-800 hover:underline font-bold text-[11px] flex items-center gap-1 transition-colors"
+          >
+            <Sparkles className="w-3 h-3" />
+            คลิกเพื่อกรอกข้อมูลเริ่มต้นอัตโนมัติ
+          </button>
+        </div>
       </div>
 
       {/* Back to Home Link */}
