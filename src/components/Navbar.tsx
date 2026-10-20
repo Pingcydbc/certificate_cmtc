@@ -169,14 +169,14 @@ export default function Navbar() {
                 </div>
               </>
             ) : (
-              /* If Guest: Subtle login link */
+              /* If Guest: Login link */
               <Link
                 href="/admin/login"
-                className="flex items-center gap-1.5 ml-2 px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-red-700 hover:bg-slate-100 rounded-xl transition-colors"
-                title="เข้าสู่ระบบสำหรับเจ้าหน้าที่"
+                className="flex items-center gap-1.5 ml-2 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-red-700 hover:bg-red-50 rounded-xl transition-colors border border-transparent hover:border-red-100"
+                title="เข้าสู่ระบบ"
               >
                 <Lock className="w-3.5 h-3.5 text-slate-400" />
-                <span>สำหรับเจ้าหน้าที่</span>
+                <span>เข้าสู่ระบบ</span>
               </Link>
             )}
           </nav>
@@ -262,10 +262,10 @@ export default function Navbar() {
               <Link
                 href="/admin/login"
                 onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50"
+                className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-red-50 hover:text-red-700"
               >
                 <Lock className="w-5 h-5 text-slate-400" />
-                เข้าสู่ระบบสำหรับเจ้าหน้าที่
+                เข้าสู่ระบบ
               </Link>
             </>
           )}
