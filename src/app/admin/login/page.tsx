@@ -70,9 +70,6 @@ function LoginForm() {
         <div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center justify-center gap-2">
             เข้าสู่ระบบผู้ดูแล
-            <span className="text-xs uppercase font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200">
-              Admin
-            </span>
           </h1>
           <p className="text-xs text-slate-500 mt-1 font-medium">
             ระบบจัดการและออกเกียรติบัตรออนไลน์ วิทยาลัยเทคนิคเชียงใหม่ (CMTC)
