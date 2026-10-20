@@ -17,15 +17,49 @@ export async function GET(request: NextRequest) {
     }
 
     if (query.trim()) {
-      const q = query.trim();
-      where.OR = [
-        { fullName: { contains: q, mode: 'insensitive' } },
-        { certNumber: { contains: q, mode: 'insensitive' } },
-        { organization: { contains: q, mode: 'insensitive' } },
-        { note: { contains: q, mode: 'insensitive' } },
-        { project: { title: { contains: q, mode: 'insensitive' } } },
-        { project: { code: { contains: q, mode: 'insensitive' } } },
-      ];
+      // Split query by one or more whitespace characters (handles multiple spacebars between words)
+      const tokens = query.trim().split(/\s+/).filter(Boolean);
+      const normalizedString = tokens.join(' ');
+
+      if (tokens.length === 1) {
+        const token = tokens[0];
+        where.OR = [
+          { fullName: { contains: token, mode: 'insensitive' } },
+          { certNumber: { contains: token, mode: 'insensitive' } },
+          { organization: { contains: token, mode: 'insensitive' } },
+          { note: { contains: token, mode: 'insensitive' } },
+          { project: { title: { contains: token, mode: 'insensitive' } } },
+          { project: { code: { contains: token, mode: 'insensitive' } } },
+        ];
+      } else {
+        // Multiple tokens, e.g. "กิตติพงษ์       สมใจ" with arbitrary spaces
+        where.OR = [
+          // 1. All tokens are found in fullName (matches regardless of space count in DB or user query)
+          {
+            AND: tokens.map((token) => ({
+              fullName: { contains: token, mode: 'insensitive' },
+            })),
+          },
+          // 2. Normalized single-space query matches any field
+          { fullName: { contains: normalizedString, mode: 'insensitive' } },
+          { certNumber: { contains: normalizedString, mode: 'insensitive' } },
+          { organization: { contains: normalizedString, mode: 'insensitive' } },
+          { project: { title: { contains: normalizedString, mode: 'insensitive' } } },
+          { project: { code: { contains: normalizedString, mode: 'insensitive' } } },
+          // 3. Or each token is found across recipient/project fields
+          {
+            AND: tokens.map((token) => ({
+              OR: [
+                { fullName: { contains: token, mode: 'insensitive' } },
+                { certNumber: { contains: token, mode: 'insensitive' } },
+                { organization: { contains: token, mode: 'insensitive' } },
+                { project: { title: { contains: token, mode: 'insensitive' } } },
+                { project: { code: { contains: token, mode: 'insensitive' } } },
+              ],
+            })),
+          },
+        ];
+      }
     }
 
     const [total, recipients] = await Promise.all([

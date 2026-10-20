@@ -44,12 +44,18 @@ export default function HomePage() {
   // Perform search across all projects
   const performSearch = async (query: string, page = 1) => {
     const cleanQuery = query.trim();
-    if (!cleanQuery) return;
+    if (!cleanQuery) {
+      setHasSearched(false);
+      setResults([]);
+      setCurrentQuery('');
+      setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
       setHasSearched(true);
-      setCurrentQuery(cleanQuery);
+      setCurrentQuery(query);
       setCurrentPage(page);
 
       const params = new URLSearchParams({
@@ -78,9 +84,22 @@ export default function HomePage() {
     }
   };
 
+  const handleQueryChange = (val: string) => {
+    setSearchInput(val);
+    if (!val.trim()) {
+      setHasSearched(false);
+      setResults([]);
+      setCurrentQuery('');
+    } else {
+      performSearch(val, 1);
+    }
+  };
+
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    performSearch(searchInput, 1);
+    if (searchInput.trim()) {
+      performSearch(searchInput, 1);
+    }
   };
 
   const handlePageChange = (page: number) => {
@@ -121,9 +140,13 @@ export default function HomePage() {
               <div className="flex-1">
                 <SearchBar
                   value={searchInput}
-                  onChange={(val) => setSearchInput(val)}
+                  onChange={handleQueryChange}
+                  onSearch={(val) => {
+                    if (val.trim()) performSearch(val, 1);
+                  }}
                   placeholder="พิมพ์ชื่อ-นามสกุล หรือเลขที่เกียรติบัตร..."
                   className="w-full"
+                  loading={loading}
                 />
               </div>
               <button

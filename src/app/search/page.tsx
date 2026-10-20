@@ -139,6 +139,7 @@ function SearchPageContent() {
             <SearchBar
               value={query}
               onChange={handleQueryChange}
+              loading={loading}
               placeholder="ค้นหาด้วย ชื่อ-นามสกุล หรือ ชื่อโครงการ... (เช่น นายสมชาย หรือ CMTC)"
             />
           </div>
