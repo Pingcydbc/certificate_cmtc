@@ -80,7 +80,15 @@ export default function Navbar() {
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';
-    return pathname.startsWith(href);
+    if (href === '/admin') {
+      return (
+        pathname === '/admin' ||
+        (pathname.startsWith('/admin/') &&
+          !pathname.startsWith('/admin/users') &&
+          !pathname.startsWith('/admin/login'))
+      );
+    }
+    return pathname === href || pathname.startsWith(href + '/');
   };
 
   return (
