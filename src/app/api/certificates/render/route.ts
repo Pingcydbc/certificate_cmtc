@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
           'Content-Type': 'application/pdf',
           'Content-Disposition': disposition,
           'Content-Length': pdfBuffer.length.toString(),
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Cache-Control': 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800',
         },
       });
     }
@@ -118,7 +118,7 @@ export async function GET(request: NextRequest) {
         'Content-Type': 'image/png',
         'Content-Disposition': disposition,
         'Content-Length': pngBuffer.length.toString(),
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Cache-Control': 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800',
       },
     });
   } catch (error: any) {

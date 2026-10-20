@@ -32,23 +32,29 @@ export default function Navbar() {
   const [adminUser, setAdminUser] = useState<AuthUser | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
 
-  // Check auth status
+  // Check auth status on initial load or admin route transitions
   useEffect(() => {
+    let isMounted = true;
     async function checkAuth() {
       try {
         const res = await fetch('/api/auth/me');
         const data = await res.json();
-        if (data.authenticated && data.user) {
-          setAdminUser(data.user);
-        } else {
-          setAdminUser(null);
+        if (isMounted) {
+          if (data.authenticated && data.user) {
+            setAdminUser(data.user);
+          } else {
+            setAdminUser(null);
+          }
         }
       } catch (e) {
-        setAdminUser(null);
+        if (isMounted) setAdminUser(null);
       }
     }
     checkAuth();
-  }, [pathname]);
+    return () => {
+      isMounted = false;
+    };
+  }, [pathname === '/admin/login' || pathname === '/admin']);
 
   const handleLogout = async () => {
     if (!confirm('ยืนยันการออกจากระบบ?')) return;

@@ -47,8 +47,9 @@ module.exports = {
         },
       },
       fontFamily: {
-        sarabun: ['"TH Sarabun New"', 'Sarabun', 'sans-serif'],
-        prompt: ['Prompt', 'sans-serif'],
+        prompt: ['var(--font-prompt)', 'Prompt', 'sans-serif'],
+        sarabun: ['var(--font-sarabun)', '"TH Sarabun New"', 'Sarabun', 'sans-serif'],
+        inter: ['var(--font-inter)', 'Inter', 'sans-serif'],
       },
     },
   },
