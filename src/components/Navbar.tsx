@@ -115,7 +115,7 @@ export default function Navbar() {
                 </span>
               </div>
               <p className="text-xs text-slate-500 -mt-0.5 hidden sm:block">
-                ระบบจัดการและตรวจสอบเกียรติบัตร วิทยาลัยเทคนิคเชียงใหม่
+                ระบบจัดการและตรวจสอบเกียรติบัตร
               </p>
             </div>
           </Link>
