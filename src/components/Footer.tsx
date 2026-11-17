@@ -6,7 +6,7 @@ export default function Footer() {
           ระบบเกียรติบัตรออนไลน์
         </p>
         <p className="text-[11px] text-slate-500 font-medium">
-          งานศูนย์ดิจิทัลและสื่อสารองค์กร วิทยาลัยเทคนิคเชียงใหม่
+          งานศูนย์ดิจิทัลและสื่อสารองค์กร
         </p>
       </div>
     </footer>

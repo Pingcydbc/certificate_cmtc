@@ -12,7 +12,7 @@ export default function NewProjectPage() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [eventDate, setEventDate] = useState('');
-  const [location, setLocation] = useState('วิทยาลัยเทคนิคเชียงใหม่');
+  const [location, setLocation] = useState('');
   const [bgImage, setBgImage] = useState('/uploads/NSDV01.jpg');
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -182,7 +182,7 @@ export default function NewProjectPage() {
                 type="text"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                placeholder="เช่น วิทยาลัยเทคนิคเชียงใหม่"
+                placeholder="เช่น ห้องประชุม / สถานที่จัดงาน"
                 className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 text-slate-900 text-sm border border-slate-200 focus:bg-white focus:ring-2 focus:ring-cmtc-700 focus:outline-none transition-all"
               />
             </div>

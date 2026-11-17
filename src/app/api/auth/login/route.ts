@@ -30,10 +30,10 @@ export async function POST(request: NextRequest) {
     });
 
     const envUser = (process.env.ADMIN_USERNAME || 'admin').trim();
-    const envPass = (process.env.ADMIN_PASSWORD || 'admin1234').trim();
+    const envPass = (process.env.ADMIN_PASSWORD || '').trim();
 
-    // Fallback if admin does not exist yet but matches env
-    if (!admin && username.toLowerCase() === envUser.toLowerCase() && password === envPass) {
+    // Fallback if admin does not exist yet and ADMIN_PASSWORD env is configured
+    if (!admin && envPass && username.toLowerCase() === envUser.toLowerCase() && password === envPass) {
       admin = await prisma.adminUser.create({
         data: {
           username: envUser,
@@ -53,8 +53,8 @@ export async function POST(request: NextRequest) {
 
     const isValid = verifyPassword(password, admin.password);
     if (!isValid) {
-      // Also allow direct check if default password matches env and admin was freshly updated
-      if (username.toLowerCase() === envUser.toLowerCase() && password === envPass) {
+      // Allow env-based reset only when ADMIN_PASSWORD is explicitly configured
+      if (envPass && username.toLowerCase() === envUser.toLowerCase() && password === envPass) {
         // Reset password to match
         await prisma.adminUser.update({
           where: { id: admin.id },

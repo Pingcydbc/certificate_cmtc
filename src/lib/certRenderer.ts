@@ -269,7 +269,7 @@ export async function renderCertificateCanvas(params: RenderCertificateParams) {
         const baseUrl =
           process.env.NEXT_PUBLIC_BASE_URL ||
           process.env.NEXT_PUBLIC_APP_URL ||
-          (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://cmtc.ac.th');
+          (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://certificate-online.vercel.app');
         const recId = recipient.id || '';
         const qrUrl = el.defaultValue ? el.defaultValue.replace(/{certId}/g, recId) : `${baseUrl}/cert/${recId}`;
         const qrBuffer = await QRCode.toBuffer(qrUrl, {

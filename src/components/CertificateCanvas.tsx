@@ -212,9 +212,9 @@ export default function CertificateCanvas({
   sampleData = {
     certNumber: 'NSDV-2569-ผจร.0001',
     fullName: 'นายสุรศักดิ์ ยะกัน',
-    organization: 'วิทยาลัยเทคนิคเชียงใหม่',
+    organization: 'ชื่อหน่วยงาน / สถานศึกษา',
     eventDate: '12-14 พฤษภาคม 2569',
-    location: 'วิทยาลัยเทคนิคเชียงใหม่',
+    location: 'สถานที่จัดงาน',
   },
 }: CertificateCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -415,7 +415,8 @@ export default function CertificateCanvas({
       } else if (el.elementType === 'qrcode') {
         const qrKey = `qr_${el.id}_${el.defaultValue || sampleData.certNumber}`;
         if (!imageElementsCache.current.has(qrKey)) {
-          const qrUrl = el.defaultValue || `https://cmtc.ac.th/cert/${sampleData.certNumber || 'DEMO'}`;
+          const origin = typeof window !== 'undefined' ? window.location.origin : 'https://certificate-online.vercel.app';
+          const qrUrl = el.defaultValue || `${origin}/cert/${sampleData.certNumber || 'DEMO'}`;
           QRCode.toDataURL(qrUrl, { margin: 1, width: 200 })
             .then((dataUrl) => {
               const img = new Image();
@@ -571,9 +572,9 @@ export default function CertificateCanvas({
       // Preview mode
       let text = '';
       if (el.elementType === 'dynamic') {
-        if (el.fieldKey === 'certNumber') text = sampleData.certNumber || 'CMTC-2569-ศขม.0001';
+        if (el.fieldKey === 'certNumber') text = sampleData.certNumber || 'CERT-2569-ศขม.0001';
         else if (el.fieldKey === 'fullName') text = sampleData.fullName || 'นายสุรศักดิ์ ยะกัน';
-        else if (el.fieldKey === 'organization') text = sampleData.organization || 'วิทยาลัยเทคนิคเชียงใหม่';
+        else if (el.fieldKey === 'organization') text = sampleData.organization || 'ชื่อหน่วยงาน / สถานศึกษา';
         else if (el.fieldKey === 'note') text = sampleData.note || 'หมายเหตุ';
         else if (el.fieldKey === 'eventDate') text = sampleData.eventDate || '12-14 พฤษภาคม 2569';
         else text = el.defaultValue || '';
@@ -1630,7 +1631,7 @@ export default function CertificateCanvas({
             id: newId,
             elementType: 'static',
             fieldKey: 'customText',
-            defaultValue: '(...................................................)\n(นายสมศักดิ์ ชัยชนะ)\nผู้อำนวยการวิทยาลัยเทคนิคเชียงใหม่',
+            defaultValue: '(...................................................)\n(ชื่อ-นามสกุล ผู้อำนวยการ)\nตำแหน่งผู้อำนวยการ',
             posX: Math.round(width * 0.5),
             posY: Math.round(height * 0.8),
             fontSize: 15,
