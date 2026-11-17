@@ -140,7 +140,7 @@ function SearchPageContent() {
               value={query}
               onChange={handleQueryChange}
               loading={loading}
-              placeholder="ค้นหาด้วย ชื่อ-นามสกุล หรือ ชื่อโครงการ... (เช่น นายสมชาย หรือ CMTC)"
+              placeholder="ค้นหาด้วย ชื่อ-นามสกุล หรือ ชื่อโครงการ... (เช่น นายสมชาย)"
             />
           </div>
 

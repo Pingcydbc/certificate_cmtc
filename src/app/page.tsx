@@ -123,7 +123,7 @@ export default function HomePage() {
         <div className="max-w-4xl mx-auto text-center relative z-10 w-full">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-red-50 border border-red-200 text-red-800 text-xs font-bold mb-6 shadow-2xs">
             <Sparkles className="w-3.5 h-3.5 text-red-600" />
-            ระบบบริการเกียรติบัตรออนไลน์ วิทยาลัยเทคนิคเชียงใหม่ (CMTC)
+            ระบบบริการเกียรติบัตรออนไลน์ วิทยาลัยเทคนิคเชียงใหม่
           </div>
 
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight leading-tight">

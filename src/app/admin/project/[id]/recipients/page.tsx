@@ -564,7 +564,7 @@ export default function RecipientsManagementPage() {
 
           <a
             href="/api/excel/template"
-            download="certificate_template_cmtc.xlsx"
+            download="certificate_template.xlsx"
             className="px-4 py-2.5 rounded-xl bg-cmtc-800 hover:bg-cmtc-900 text-white text-xs font-bold shadow-md shadow-red-900/15 flex items-center gap-2 transition-all transform hover:-translate-y-0.5 shrink-0"
             title="ดาวน์โหลดไฟล์ตัวอย่าง Excel ที่จัดคอลัมน์มาตรฐานไว้ให้เรียบร้อยแล้ว"
           >
@@ -840,7 +840,7 @@ export default function RecipientsManagementPage() {
                           type="text"
                           value={autoCertPrefix}
                           onChange={(e) => setAutoCertPrefix(e.target.value)}
-                          placeholder={`${project?.code || 'CMTC'}-`}
+                          placeholder={`${project?.code || 'CERT'}-`}
                           className="flex-1 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-mono text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-cmtc-700"
                         />
                       </div>

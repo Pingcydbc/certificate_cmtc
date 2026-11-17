@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
         data: {
           username: envUser,
           password: hashPassword(envPass),
-          name: 'ผู้ดูแลระบบ CMTC',
+          name: 'ผู้ดูแลระบบ',
           role: 'admin',
         },
       });

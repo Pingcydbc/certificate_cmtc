@@ -269,7 +269,7 @@ export default function CertificateEditorPage() {
   }
 
   const sampleRecipient = project.recipients?.[0] || {
-    certNumber: `${project.code || 'CMTC'}-ศขม.0001`,
+    certNumber: `${project.code || 'CERT'}-ศขม.0001`,
     fullName: 'นายสมชาย ยิ่งยง',
     organization: project.location || 'วิทยาลัยเทคนิคเชียงใหม่',
   };

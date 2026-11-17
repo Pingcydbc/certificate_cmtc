@@ -78,7 +78,7 @@ export async function ensureDefaultAdmin() {
         data: {
           username: defaultUsername,
           password: hashPassword(defaultPassword),
-          name: 'ผู้ดูแลระบบ CMTC',
+          name: 'ผู้ดูแลระบบ',
           role: 'admin',
         },
       });

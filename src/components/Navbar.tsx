@@ -111,10 +111,7 @@ export default function Navbar() {
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-bold text-lg text-slate-900 group-hover:text-red-700 transition-colors">
-                  CMTC e-Cert
-                </span>
-                <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200">
-                  Online
+                  ระบบเกียรติบัตรออนไลน์
                 </span>
               </div>
               <p className="text-xs text-slate-500 -mt-0.5 hidden sm:block">

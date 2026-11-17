@@ -13,7 +13,7 @@ export async function GET() {
     }
 
     const fileBuffer = fs.readFileSync(templatePath);
-    const filename = 'certificate_template_cmtc.xlsx';
+    const filename = 'certificate_template.xlsx';
 
     return new NextResponse(new Uint8Array(fileBuffer), {
       status: 200,
