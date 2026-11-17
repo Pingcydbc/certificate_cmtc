@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { authorizeProjectAccess } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -120,6 +121,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const auth = await authorizeProjectAccess(request, projectId);
+    if (auth.error) return auth.error;
 
     // Clean whitespace
     const cleanedName = fullName.trim().replace(/\s+/g, ' ');

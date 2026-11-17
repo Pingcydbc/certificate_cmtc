@@ -78,6 +78,8 @@ export default function RecipientsManagementPage() {
   const id = params?.id as string;
 
   const [project, setProject] = useState<ProjectInfo | null>(null);
+  const [projectLoading, setProjectLoading] = useState(true);
+  const [projectError, setProjectError] = useState<string | null>(null);
   const [recipients, setRecipients] = useState<RecipientItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -125,14 +127,22 @@ export default function RecipientsManagementPage() {
   // Load project info
   const loadProject = useCallback(async () => {
     try {
+      setProjectLoading(true);
+      setProjectError(null);
       const res = await fetch(`/api/projects/${id}`);
       const data = await res.json();
       if (data.success && data.project) {
         setProject(data.project);
         setAutoCertPrefix(`${data.project.code}-`);
+      } else {
+        setProject(null);
+        setProjectError(data.error || 'คุณไม่มีสิทธิ์เข้าถึงหรือไม่พบโครงการนี้');
       }
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      setProject(null);
+      setProjectError(e.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูลโครงการ');
+    } finally {
+      setProjectLoading(false);
     }
   }, [id]);
 
@@ -165,8 +175,10 @@ export default function RecipientsManagementPage() {
   }, [loadProject]);
 
   useEffect(() => {
-    loadRecipients();
-  }, [loadRecipients]);
+    if (project) {
+      loadRecipients();
+    }
+  }, [project, loadRecipients]);
 
   // Request preview for a file and specific sheet
   const fetchPreview = async (file: File, sheetName?: string) => {
@@ -482,6 +494,36 @@ export default function RecipientsManagementPage() {
       alert('เกิดข้อผิดพลาด');
     }
   };
+
+  if (projectLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="glass-panel p-8 rounded-2xl text-center space-y-4 bg-white border border-slate-200 shadow-sm">
+          <div className="w-10 h-10 border-4 border-red-100 border-t-cmtc-800 rounded-full animate-spin mx-auto" />
+          <p className="text-xs text-slate-500">กำลังตรวจสอบสิทธิ์และโหลดข้อมูลโครงการ...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (projectError || !project) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="glass-panel p-8 rounded-2xl text-center max-w-md space-y-4 bg-white border border-slate-200 shadow-sm">
+          <AlertCircle className="w-8 h-8 text-red-600 mx-auto" />
+          <h2 className="text-lg font-bold text-slate-900">ไม่สามารถเข้าถึงโครงการนี้ได้</h2>
+          <p className="text-xs text-slate-500">{projectError || 'ไม่พบโครงการ'}</p>
+          <Link
+            href="/admin"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-cmtc-800 text-white font-bold text-xs hover:bg-cmtc-900 shadow-sm"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            กลับไปหน้าโครงการ
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-8">

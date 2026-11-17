@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { authorizeProjectAccess } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,6 +10,9 @@ export async function GET(
 ) {
   try {
     const { projectId } = params;
+    const auth = await authorizeProjectAccess(request, projectId);
+    if (auth.error) return auth.error;
+
     const template = await prisma.certificateTemplate.findUnique({
       where: { projectId },
       include: {
@@ -36,16 +40,11 @@ export async function PUT(
 ) {
   try {
     const { projectId } = params;
+    const auth = await authorizeProjectAccess(request, projectId);
+    if (auth.error) return auth.error;
+
     const body = await request.json();
     const { backgroundImage, width, height, elements } = body;
-
-    // Check project exists
-    const project = await prisma.project.findUnique({
-      where: { id: projectId },
-    });
-    if (!project) {
-      return NextResponse.json({ success: false, error: 'ไม่พบโครงการ' }, { status: 404 });
-    }
 
     // Upsert template
     const template = await prisma.certificateTemplate.upsert({

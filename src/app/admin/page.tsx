@@ -97,6 +97,7 @@ export default function AdminDashboardPage() {
         page: currentPage.toString(),
         limit: '10',
         search: search.trim(),
+        scope: 'manage',
       });
       const res = await fetch(`/api/projects?${params.toString()}`);
       const data = await res.json();
@@ -148,6 +149,8 @@ export default function AdminDashboardPage() {
         setProjects((prev) =>
           prev.map((p) => (p.id === id ? { ...p, isActive: !current } : p))
         );
+      } else {
+        alert(data.error || 'อัปเดตสถานะไม่สำเร็จ');
       }
     } catch (e) {
       console.error(e);
@@ -213,7 +216,9 @@ export default function AdminDashboardPage() {
           </div>
           <div>
             <p className="text-2xl font-black text-slate-900">{totalCount}</p>
-            <p className="text-xs text-slate-500">โครงการทั้งหมดในระบบ</p>
+            <p className="text-xs text-slate-500">
+              {currentUser?.role === 'admin' ? 'โครงการทั้งหมดในระบบ' : 'โครงการของคุณ'}
+            </p>
           </div>
         </div>
 

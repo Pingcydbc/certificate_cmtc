@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { authorizeProjectAccess } from '@/lib/auth';
 import * as xlsx from 'xlsx';
 
 export const dynamic = 'force-dynamic';
@@ -18,12 +19,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const project = await prisma.project.findUnique({
-      where: { id: projectId },
-    });
-    if (!project) {
-      return NextResponse.json({ success: false, error: 'ไม่พบโครงการที่ระบุ' }, { status: 404 });
-    }
+    const auth = await authorizeProjectAccess(request, projectId);
+    if (auth.error) return auth.error;
+    const { project } = auth;
 
     // Config parameters
     const requestedSheet = (formData.get('sheetName') as string) || '';

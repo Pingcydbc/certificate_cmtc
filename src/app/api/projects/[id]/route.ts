@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { authorizeProjectAccess } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,6 +10,9 @@ export async function GET(
 ) {
   try {
     const { id } = params;
+    const auth = await authorizeProjectAccess(request, id);
+    if (auth.error) return auth.error;
+
     const project = await prisma.project.findUnique({
       where: { id },
       include: {
@@ -43,6 +47,9 @@ export async function PUT(
 ) {
   try {
     const { id } = params;
+    const auth = await authorizeProjectAccess(request, id);
+    if (auth.error) return auth.error;
+
     const body = await request.json();
     const { title, description, eventDate, location, isActive, code } = body;
 
@@ -74,32 +81,8 @@ export async function DELETE(
 ) {
   try {
     const { id } = params;
-    const { verifySessionToken, ADMIN_COOKIE_NAME } = await import('@/lib/auth');
-    const token = request.cookies.get(ADMIN_COOKIE_NAME)?.value;
-    const session = token ? verifySessionToken(token) : null;
-
-    if (!session) {
-      return NextResponse.json(
-        { success: false, error: 'กรุณาเข้าสู่ระบบก่อนทำรายการ' },
-        { status: 401 }
-      );
-    }
-
-    const project = await prisma.project.findUnique({ where: { id } });
-    if (!project) {
-      return NextResponse.json({ success: false, error: 'ไม่พบโครงการนี้' }, { status: 404 });
-    }
-
-    // Check permissions: Admin can delete any project; User can ONLY delete projects they created
-    if (session.role !== 'admin' && project.createdById !== session.adminId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'คุณไม่มีสิทธิ์ลบโครงการนี้ (เจ้าหน้าที่สามารถลบได้เฉพาะโครงการที่ตนเองเป็นผู้สร้างเท่านั้น)',
-        },
-        { status: 403 }
-      );
-    }
+    const auth = await authorizeProjectAccess(request, id);
+    if (auth.error) return auth.error;
 
     await prisma.project.delete({
       where: { id },

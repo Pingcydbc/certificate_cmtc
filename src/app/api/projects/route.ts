@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { getRequestSession } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,10 +11,22 @@ export async function GET(request: NextRequest) {
     const limit = Math.max(1, parseInt(searchParams.get('limit') || '10'));
     const search = searchParams.get('search') || '';
     const activeOnly = searchParams.get('activeOnly') === 'true';
+    const scope = searchParams.get('scope') || '';
 
     const where: any = {};
-    if (activeOnly) {
+    if (activeOnly && scope !== 'manage') {
       where.isActive = true;
+    } else {
+      const session = getRequestSession(request);
+      if (!session) {
+        return NextResponse.json(
+          { success: false, error: 'กรุณาเข้าสู่ระบบก่อนทำรายการ' },
+          { status: 401 }
+        );
+      }
+      if (session.role !== 'admin') {
+        where.createdById = session.adminId;
+      }
     }
     if (search.trim()) {
       const q = search.trim();
@@ -108,6 +121,14 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const session = getRequestSession(request);
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: 'กรุณาเข้าสู่ระบบก่อนทำรายการ' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const { code, title, description, eventDate, location, backgroundImage } = body;
 
@@ -129,11 +150,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Identify creator from session
-    const { verifySessionToken, ADMIN_COOKIE_NAME } = await import('@/lib/auth');
-    const token = request.cookies.get(ADMIN_COOKIE_NAME)?.value;
-    const session = token ? verifySessionToken(token) : null;
-    const createdById = session?.adminId || null;
+    const createdById = session.adminId;
 
     const project = await prisma.project.create({
       data: {

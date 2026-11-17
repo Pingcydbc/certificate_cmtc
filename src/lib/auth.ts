@@ -1,6 +1,8 @@
 import crypto from 'crypto';
 import prisma from '@/lib/prisma';
 import { cookies } from 'next/headers';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 
 const AUTH_SECRET = process.env.AUTH_SECRET || 'cmtc-cert-admin-super-secure-token-2026-secret';
 export const ADMIN_COOKIE_NAME = 'admin_session_token';
@@ -95,4 +97,71 @@ export async function getAdminSession(): Promise<SessionPayload | null> {
   const token = cookieStore.get(ADMIN_COOKIE_NAME)?.value;
   if (!token) return null;
   return verifySessionToken(token);
+}
+
+// Extract and verify session from a Route Handler request
+export function getRequestSession(request: NextRequest): SessionPayload | null {
+  const token = request.cookies.get(ADMIN_COOKIE_NAME)?.value;
+  if (!token) return null;
+  return verifySessionToken(token);
+}
+
+// Admin can manage any project; user can manage only projects they created
+export function canManageProject(
+  session: SessionPayload | null,
+  createdById: string | null | undefined
+): boolean {
+  if (!session) return false;
+  if (session.role === 'admin') return true;
+  return Boolean(session.adminId) && createdById === session.adminId;
+}
+
+// Verify session + project existence + ownership in one shared helper
+export async function authorizeProjectAccess(
+  request: NextRequest,
+  projectId: string
+): Promise<
+  | { session: SessionPayload; project: { id: string; code: string; title: string; location: string | null; createdById: string | null }; error?: never }
+  | { error: NextResponse; session?: never; project?: never }
+> {
+  const session = getRequestSession(request);
+  if (!session) {
+    return {
+      error: NextResponse.json(
+        { success: false, error: 'กรุณาเข้าสู่ระบบก่อนทำรายการ' },
+        { status: 401 }
+      ),
+    };
+  }
+
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: {
+      id: true,
+      code: true,
+      title: true,
+      location: true,
+      createdById: true,
+    },
+  });
+
+  if (!project) {
+    return {
+      error: NextResponse.json({ success: false, error: 'ไม่พบโครงการนี้' }, { status: 404 }),
+    };
+  }
+
+  if (!canManageProject(session, project.createdById)) {
+    return {
+      error: NextResponse.json(
+        {
+          success: false,
+          error: 'คุณไม่มีสิทธิ์เข้าถึงหรือจัดการโครงการนี้ (จัดการได้เฉพาะโครงการที่ตนเองเป็นผู้สร้างเท่านั้น)',
+        },
+        { status: 403 }
+      ),
+    };
+  }
+
+  return { session, project };
 }
