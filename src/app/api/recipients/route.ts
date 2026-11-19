@@ -11,6 +11,7 @@ export async function GET(request: NextRequest) {
     const query = searchParams.get('query') || '';
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
     const limit = Math.max(1, parseInt(searchParams.get('limit') || '20'));
+    const noCache = searchParams.get('noCache') === '1';
 
     const where: any = {};
     if (projectId) {
@@ -97,7 +98,10 @@ export async function GET(request: NextRequest) {
       },
       {
         headers: {
-          'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=120',
+          'Cache-Control':
+            noCache || projectId
+              ? 'no-store, must-revalidate'
+              : 'public, s-maxage=30, stale-while-revalidate=120',
         },
       }
     );

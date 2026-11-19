@@ -159,7 +159,9 @@ export default function AdminDashboardPage() {
         method: 'DELETE',
       });
       const data = await res.json();
-      if (!data.success) {
+      if (data.success) {
+        window.location.reload();
+      } else {
         setProjects(prevProjects);
         setTotalCount(prevTotalCount);
         alert(data.error || 'ลบไม่สำเร็จ');

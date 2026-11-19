@@ -173,8 +173,9 @@ export default function RecipientsManagementPage() {
         query: debouncedSearch.trim(),
         page: currentPage.toString(),
         limit: '15',
+        noCache: '1',
       });
-      const res = await fetch(`/api/recipients?${params.toString()}`);
+      const res = await fetch(`/api/recipients?${params.toString()}`, { cache: 'no-store' });
       const data = await res.json();
       if (data.success) {
         setRecipients(data.recipients);
@@ -187,6 +188,17 @@ export default function RecipientsManagementPage() {
       setLoading(false);
     }
   }, [id, debouncedSearch, currentPage]);
+
+  useEffect(() => {
+    try {
+      const flashKey = `recipients_flash_${id}`;
+      const flashMsg = sessionStorage.getItem(flashKey);
+      if (flashMsg) {
+        sessionStorage.removeItem(flashKey);
+        setImportSuccessMsg(flashMsg);
+      }
+    } catch {}
+  }, [id]);
 
   useEffect(() => {
     loadProject();
@@ -479,11 +491,13 @@ export default function RecipientsManagementPage() {
 
       const data = await res.json();
       if (data.success) {
-        setImportSuccessMsg(data.message || `นำเข้าสำเร็จ ${data.importedCount} รายชื่อ`);
-        setSelectedFile(null);
-        setPreviewData(null);
-        setCurrentPage(1);
-        loadRecipients();
+        try {
+          sessionStorage.setItem(
+            `recipients_flash_${id}`,
+            data.message || `นำเข้าสำเร็จ ${data.importedCount} รายชื่อ`
+          );
+        } catch {}
+        window.location.reload();
       } else {
         setErrorMessage(data.error || 'นำเข้าไม่สำเร็จ');
       }
@@ -509,7 +523,12 @@ export default function RecipientsManagementPage() {
         method: 'DELETE',
       });
       const data = await res.json();
-      if (!data.success) {
+      if (data.success) {
+        try {
+          sessionStorage.setItem(`recipients_flash_${id}`, `ลบรายชื่อ "${name}" เรียบร้อยแล้ว`);
+        } catch {}
+        window.location.reload();
+      } else {
         setRecipients(prevRecipients);
         setTotalCount(prevTotalCount);
         alert(data.error || 'ลบไม่สำเร็จ');
@@ -547,7 +566,13 @@ export default function RecipientsManagementPage() {
       });
       const data = await res.json();
       if (data.success) {
-        setImportSuccessMsg(data.message || 'ลบรายชื่อทั้งหมดในโครงการเรียบร้อยแล้ว');
+        try {
+          sessionStorage.setItem(
+            `recipients_flash_${id}`,
+            data.message || 'ลบรายชื่อทั้งหมดในโครงการเรียบร้อยแล้ว'
+          );
+        } catch {}
+        window.location.reload();
       } else {
         setRecipients(prevRecipients);
         setTotalCount(prevTotalCount);
