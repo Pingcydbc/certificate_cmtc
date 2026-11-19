@@ -1720,13 +1720,14 @@ export default function CertificateCanvas({
       setUploadingImage(true);
       const data = await uploadOptimizedImage(file, 'element');
       if (data.success && data.url) {
+        const imageUrl = data.url;
         pushHistory(elements);
         const newId = `img_${Date.now()}`;
         const newEl: CanvasElement = {
           id: newId,
           elementType: 'image',
           fieldKey: 'image',
-          defaultValue: data.url,
+          defaultValue: imageUrl,
           posX: Math.round(width / 2),
           posY: Math.round(height / 2),
           width: 140,
@@ -1744,9 +1745,9 @@ export default function CertificateCanvas({
 
         const img = new Image();
         img.crossOrigin = 'anonymous';
-        img.src = data.url;
+        img.src = imageUrl;
         img.onload = () => {
-          imageElementsCache.current.set(data.url, img);
+          imageElementsCache.current.set(imageUrl, img);
           drawCanvas();
         };
 

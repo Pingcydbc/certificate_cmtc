@@ -201,31 +201,38 @@ export async function optimizeImageForUpload(
         }
       }
     } else {
-      const renderJpeg = async (w: number, h: number, qualities: number[]) => {
+      const renderJpeg = async (
+        w: number,
+        h: number,
+        qualities: number[]
+      ): Promise<{ blob: Blob | null; fits: boolean }> => {
         canvas.width = w;
         canvas.height = h;
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, w, h);
         ctx.drawImage(source, 0, 0, w, h);
 
+        let lastBlob: Blob | null = null;
         for (const q of qualities) {
           const blob = await canvasToBlob(canvas, 'image/jpeg', q);
           if (blob) {
-            bestBlob = blob;
-            if (blob.size <= maxBytes) return true;
+            lastBlob = blob;
+            if (blob.size <= maxBytes) return { blob, fits: true };
           }
         }
-        return false;
+        return { blob: lastBlob, fits: false };
       };
 
       // Start at 0.96 (near-lossless) to keep certificate backgrounds razor-sharp
-      const fitsInitial = await renderJpeg(targetW, targetH, [0.96, 0.93, 0.89, 0.84]);
-      if (!fitsInitial) {
+      const initialResult = await renderJpeg(targetW, targetH, [0.96, 0.93, 0.89, 0.84]);
+      bestBlob = initialResult.blob;
+      if (!initialResult.fits) {
         for (const dimFactor of [0.82, 0.65]) {
           const w = Math.max(1, Math.round(targetW * dimFactor));
           const h = Math.max(1, Math.round(targetH * dimFactor));
-          const ok = await renderJpeg(w, h, [0.9, 0.82, 0.72]);
-          if (ok) break;
+          const attempt = await renderJpeg(w, h, [0.9, 0.82, 0.72]);
+          if (attempt.blob) bestBlob = attempt.blob;
+          if (attempt.fits) break;
         }
       }
     }
