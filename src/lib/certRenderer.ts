@@ -478,25 +478,32 @@ export async function renderCertificatePdf(params: RenderCertificateParams): Pro
   const pdfDoc = await PDFDocument.create();
   const embeddedImage = await pdfDoc.embedPng(pngBuffer);
 
-  const pageWidth = 841.89;
-  const pageHeight = 595.28;
+  const imgAspect = embeddedImage.width / embeddedImage.height;
+  // Keep standard A4 page size (297mm x 210mm in points) with full-bleed edge-to-edge rendering
+  const isLandscape = imgAspect >= 1;
+  const pageWidth = isLandscape ? 841.89 : 595.28;
+  const pageHeight = isLandscape ? 595.28 : 841.89;
+  const pageAspect = pageWidth / pageHeight;
 
   const page = pdfDoc.addPage([pageWidth, pageHeight]);
 
-  const imgAspect = embeddedImage.width / embeddedImage.height;
-  const pageAspect = pageWidth / pageHeight;
-
+  // If aspect ratio is practically A4 (e.g. 990x698 vs A4 = ~0.28% diff), fill A4 directly so no borders are clipped or left white.
+  // Otherwise use cover scaling to keep exact A4 with zero white bars.
   let drawW = pageWidth;
   let drawH = pageHeight;
   let drawX = 0;
   let drawY = 0;
 
-  if (imgAspect > pageAspect) {
-    drawH = pageWidth / imgAspect;
-    drawY = (pageHeight - drawH) / 2;
-  } else {
-    drawW = pageHeight * imgAspect;
-    drawX = (pageWidth - drawW) / 2;
+  if (Math.abs(imgAspect - pageAspect) > 0.03) {
+    if (imgAspect > pageAspect) {
+      drawH = pageHeight;
+      drawW = pageHeight * imgAspect;
+      drawX = (pageWidth - drawW) / 2;
+    } else {
+      drawW = pageWidth;
+      drawH = pageWidth / imgAspect;
+      drawY = (pageHeight - drawH) / 2;
+    }
   }
 
   page.drawImage(embeddedImage, {
