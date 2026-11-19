@@ -864,8 +864,13 @@ export default function CertificateCanvas({
       ctx.font = 'bold 11px Prompt, sans-serif';
       const pillW = ctx.measureText(label).width + 16;
       const pillH = 22;
-      const pillX = frame.centerX - pillW / 2;
-      const pillY = frame.bottom + 8;
+      const pillX = Math.max(4, Math.min(width - pillW - 4, frame.centerX - pillW / 2));
+      const preferBelowY = frame.bottom + 8;
+      const fallbackAboveY = frame.top - pillH - 8;
+      const pillY =
+        preferBelowY + pillH <= height - 4
+          ? preferBelowY
+          : Math.max(4, fallbackAboveY);
 
       ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
       ctx.strokeStyle = activeColor;
@@ -886,19 +891,21 @@ export default function CertificateCanvas({
       ctx.fillStyle = isLocked ? '#fca5a5' : isResizing ? '#38bdf8' : '#fda4af';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(label, frame.centerX, pillY + pillH / 2);
+      ctx.fillText(label, pillX + pillW / 2, pillY + pillH / 2);
 
       ctx.restore();
     };
 
+    let selectedOverlay: { el: CanvasElement; bounds: ElementBounds } | null = null;
+
     // 4. Draw All Elements
-    elements.forEach((el) => {
+    for (const el of elements) {
       ctx.save();
       const isSelected = el.id === selectedId && !isPreviewMode;
 
       if (el.id === editingId) {
         ctx.restore();
-        return;
+        continue;
       }
 
       const elemOpacity = el.opacity !== undefined && el.opacity !== null ? el.opacity : 1.0;
@@ -933,10 +940,10 @@ export default function CertificateCanvas({
         }
 
         if (isSelected) {
-          drawBoundingFrame(el, bounds);
+          selectedOverlay = { el, bounds };
         }
         ctx.restore();
-        return;
+        continue;
       }
 
       // B. QR Code Element
@@ -960,10 +967,10 @@ export default function CertificateCanvas({
         }
 
         if (isSelected) {
-          drawBoundingFrame(el, bounds);
+          selectedOverlay = { el, bounds };
         }
         ctx.restore();
-        return;
+        continue;
       }
 
       // C. Text Element (Dynamic or Static)
@@ -1007,11 +1014,11 @@ export default function CertificateCanvas({
 
       if (isSelected) {
         const bounds = getElementBounds(el, ctx);
-        drawBoundingFrame(el, bounds);
+        selectedOverlay = { el, bounds };
       }
 
       ctx.restore();
-    });
+    }
 
     // 5. Smart Snap Guides (Canva-style pink alignment lines)
     if (enableSnap && (activeGuides.verticalCenter || activeGuides.horizontalCenter)) {
@@ -1035,6 +1042,11 @@ export default function CertificateCanvas({
       }
 
       ctx.restore();
+    }
+
+    // 6. Topmost Selection Bounding Frame, Handles, and Size Pill (above all elements and guides)
+    if (selectedOverlay) {
+      drawBoundingFrame(selectedOverlay.el, selectedOverlay.bounds);
     }
   }, [
     activeGuides,

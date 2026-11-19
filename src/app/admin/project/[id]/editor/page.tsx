@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -52,18 +52,16 @@ export default function CertificateEditorPage() {
   const [uploading, setUploading] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
 
-  const isInitialLoad = useRef(true);
-  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
-
   const saveTemplate = useCallback(
-    async (currentElements: CanvasElement[], currentBgImage: string, isAutoSave = false) => {
+    async (currentElements: CanvasElement[], currentBgImage: string) => {
       if (!id) return;
       try {
         setSaving(true);
-        if (!isAutoSave) setError(null);
+        setSaveError(null);
 
         const res = await fetch(`/api/templates/${id}`, {
           method: 'PUT',
@@ -88,10 +86,10 @@ export default function CertificateEditorPage() {
           setSavedSuccess(true);
           setTimeout(() => setSavedSuccess(false), 3000);
         } else {
-          if (!isAutoSave) setError(data.error || 'บันทึกไม่สำเร็จ');
+          setSaveError(data.error || 'บันทึกไม่สำเร็จ');
         }
       } catch (err: any) {
-        if (!isAutoSave) setError(err.message || 'เกิดข้อผิดพลาดในการบันทึกแม่แบบ');
+        setSaveError(err.message || 'เกิดข้อผิดพลาดในการบันทึกแม่แบบ');
       } finally {
         setSaving(false);
       }
@@ -99,45 +97,29 @@ export default function CertificateEditorPage() {
     [id]
   );
 
-  const handleSaveImmediately = useCallback(
-    (newElements: CanvasElement[]) => {
-      setElements(newElements);
-      saveTemplate(newElements, bgImage, false);
-    },
-    [bgImage, saveTemplate]
-  );
-
-  // Auto-save effect: automatically saves changes 700ms after editing
-  useEffect(() => {
-    if (isInitialLoad.current) {
-      if (!loading && elements.length > 0) {
-        isInitialLoad.current = false;
-      }
-      return;
-    }
-
+  const handleElementsChange = useCallback((newElements: CanvasElement[]) => {
+    setElements(newElements);
     setIsDirty(true);
-    if (autoSaveTimerRef.current) {
-      clearTimeout(autoSaveTimerRef.current);
-    }
+    setSavedSuccess(false);
+  }, []);
 
-    autoSaveTimerRef.current = setTimeout(() => {
-      saveTemplate(elements, bgImage, true);
-    }, 700);
-
-    return () => {
-      if (autoSaveTimerRef.current) {
-        clearTimeout(autoSaveTimerRef.current);
-      }
+  // Warn user before closing or refreshing the tab if there are unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!isDirty) return;
+      e.preventDefault();
+      e.returnValue = '';
     };
-  }, [elements, bgImage, loading, saveTemplate]);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
 
-  // Keyboard shortcut: Ctrl+S or Cmd+S to save immediately
+  // Keyboard shortcut: Ctrl+S or Cmd+S to save manually
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
         e.preventDefault();
-        saveTemplate(elements, bgImage, false);
+        saveTemplate(elements, bgImage);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -222,8 +204,8 @@ export default function CertificateEditorPage() {
       const data = await res.json();
       if (data.success) {
         setBgImage(data.url);
-        // Automatically save new background image immediately
-        saveTemplate(elements, data.url, false);
+        setIsDirty(true);
+        setSavedSuccess(false);
       } else {
         alert(data.error || 'อัปโหลดไม่สำเร็จ');
       }
@@ -235,7 +217,15 @@ export default function CertificateEditorPage() {
   };
 
   const handleSave = () => {
-    saveTemplate(elements, bgImage, false);
+    saveTemplate(elements, bgImage);
+  };
+
+  const navigateWithConfirm = (href: string) => {
+    if (isDirty) {
+      const ok = window.confirm('มีการแก้ไขที่ยังไม่ได้บันทึก ต้องการออกจากหน้านี้โดยไม่บันทึกหรือไม่?');
+      if (!ok) return;
+    }
+    router.push(href);
   };
 
   if (loading) {
@@ -282,12 +272,7 @@ export default function CertificateEditorPage() {
           <div className="flex items-center gap-2 text-xs text-cmtc-800 font-semibold mb-1">
             <button
               type="button"
-              onClick={async () => {
-                if (isDirty) {
-                  await saveTemplate(elements, bgImage, false);
-                }
-                router.push('/admin');
-              }}
+              onClick={() => navigateWithConfirm('/admin')}
               className="hover:underline flex items-center gap-1 cursor-pointer"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
@@ -311,21 +296,23 @@ export default function CertificateEditorPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          {lastSavedTime && (
-            <span className="text-[11px] text-emerald-700 font-mono hidden sm:flex items-center gap-1.5 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-              <span>บันทึกอัตโนมัติแล้ว ({lastSavedTime} น.)</span>
+          {isDirty ? (
+            <span className="text-[11px] text-amber-700 font-medium hidden sm:flex items-center gap-1.5 bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-200">
+              <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+              <span>ยังไม่บันทึกการเปลี่ยนแปลง</span>
             </span>
+          ) : (
+            lastSavedTime && (
+              <span className="text-[11px] text-emerald-700 font-mono hidden sm:flex items-center gap-1.5 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                <span>บันทึกล่าสุด ({lastSavedTime} น.)</span>
+              </span>
+            )
           )}
 
           <button
             type="button"
-            onClick={async () => {
-              if (isDirty) {
-                await saveTemplate(elements, bgImage, false);
-              }
-              router.push(`/admin/project/${project.id}/recipients`);
-            }}
+            onClick={() => navigateWithConfirm(`/admin/project/${project.id}/recipients`)}
             className="px-3.5 py-2 rounded-xl bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs"
           >
             <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
@@ -335,13 +322,19 @@ export default function CertificateEditorPage() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className={`px-5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm transition-all ${
+            className={`relative px-5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm transition-all ${
               savedSuccess
                 ? 'bg-emerald-600 text-white shadow-emerald-500/20'
                 : 'bg-cmtc-800 hover:bg-cmtc-900 text-white shadow-red-900/15 hover:scale-[1.02] active:scale-[0.98]'
             }`}
             title="บันทึกการจัดวาง (Ctrl+S)"
           >
+            {isDirty && !savedSuccess && !saving && (
+              <span
+                className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"
+                aria-hidden="true"
+              />
+            )}
             {savedSuccess ? (
               <>
                 <CheckCircle2 className="w-4 h-4" />
@@ -356,6 +349,22 @@ export default function CertificateEditorPage() {
           </button>
         </div>
       </div>
+
+      {saveError && (
+        <div className="px-4 py-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{saveError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSaveError(null)}
+            className="font-semibold hover:underline"
+          >
+            ปิด
+          </button>
+        </div>
+      )}
 
       {/* Background Template Bar */}
       <div className="glass-panel px-4 py-3 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs bg-white border border-slate-200/80 shadow-sm">
@@ -384,8 +393,7 @@ export default function CertificateEditorPage() {
         <CertificateCanvas
           backgroundImage={bgImage}
           elements={elements}
-          onElementsChange={setElements}
-          onSaveImmediately={handleSaveImmediately}
+          onElementsChange={handleElementsChange}
           width={990}
           height={698}
           sampleData={{
