@@ -494,26 +494,34 @@ export default function RecipientsManagementPage() {
     }
   };
 
-  // Delete recipient
+  // Delete recipient (optimistic UI update for instant feedback)
   const handleDeleteRecipient = async (recipId: string, name: string) => {
     if (!confirm(`ยืนยันการลบรายชื่อ "${name}" ออกจากโครงการ?`)) return;
+
+    const prevRecipients = recipients;
+    const prevTotalCount = totalCount;
+
+    setRecipients((prev) => prev.filter((r) => r.id !== recipId));
+    setTotalCount((c) => Math.max(0, c - 1));
 
     try {
       const res = await fetch(`/api/recipients/${recipId}`, {
         method: 'DELETE',
       });
       const data = await res.json();
-      if (data.success) {
-        loadRecipients();
-      } else {
+      if (!data.success) {
+        setRecipients(prevRecipients);
+        setTotalCount(prevTotalCount);
         alert(data.error || 'ลบไม่สำเร็จ');
       }
     } catch (e) {
+      setRecipients(prevRecipients);
+      setTotalCount(prevTotalCount);
       alert('เกิดข้อผิดพลาด');
     }
   };
 
-  // Clear all Excel recipients in this project
+  // Clear all Excel recipients in this project (optimistic UI clear)
   const handleClearAllRecipients = async () => {
     if (
       !confirm(
@@ -522,6 +530,14 @@ export default function RecipientsManagementPage() {
     ) {
       return;
     }
+
+    const prevRecipients = recipients;
+    const prevTotalCount = totalCount;
+    const prevTotalPages = totalPages;
+
+    setRecipients([]);
+    setTotalCount(0);
+    setTotalPages(1);
 
     try {
       setClearingAll(true);
@@ -532,14 +548,16 @@ export default function RecipientsManagementPage() {
       const data = await res.json();
       if (data.success) {
         setImportSuccessMsg(data.message || 'ลบรายชื่อทั้งหมดในโครงการเรียบร้อยแล้ว');
-        setCurrentPage(1);
-        setSearch('');
-        setDebouncedSearch('');
-        loadRecipients();
       } else {
+        setRecipients(prevRecipients);
+        setTotalCount(prevTotalCount);
+        setTotalPages(prevTotalPages);
         setErrorMessage(data.error || 'ไม่สามารถลบรายชื่อทั้งหมดได้');
       }
     } catch (err: any) {
+      setRecipients(prevRecipients);
+      setTotalCount(prevTotalCount);
+      setTotalPages(prevTotalPages);
       setErrorMessage(err.message || 'เกิดข้อผิดพลาดในการลบรายชื่อทั้งหมด');
     } finally {
       setClearingAll(false);

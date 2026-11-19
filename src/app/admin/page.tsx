@@ -147,17 +147,26 @@ export default function AdminDashboardPage() {
       return;
     }
 
+    const prevProjects = projects;
+    const prevTotalCount = totalCount;
+
+    // Optimistic UI removal for instant response
+    setProjects((prev) => prev.filter((p) => p.id !== id));
+    setTotalCount((c) => Math.max(0, c - 1));
+
     try {
       const res = await fetch(`/api/projects/${id}`, {
         method: 'DELETE',
       });
       const data = await res.json();
-      if (data.success) {
-        fetchProjects();
-      } else {
+      if (!data.success) {
+        setProjects(prevProjects);
+        setTotalCount(prevTotalCount);
         alert(data.error || 'ลบไม่สำเร็จ');
       }
     } catch (e) {
+      setProjects(prevProjects);
+      setTotalCount(prevTotalCount);
       alert('เกิดข้อผิดพลาดในการลบโครงการ');
     }
   };

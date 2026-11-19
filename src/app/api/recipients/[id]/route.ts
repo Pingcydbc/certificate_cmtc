@@ -60,20 +60,21 @@ export async function DELETE(
     }
 
     const { id } = params;
-    const recipient = await prisma.recipient.findUnique({
-      where: { id },
-      include: {
-        project: {
-          select: { createdById: true },
-        },
+    const deleted = await prisma.recipient.deleteMany({
+      where: {
+        id,
+        ...(session.role !== 'admin' ? { project: { createdById: session.adminId } } : {}),
       },
     });
 
-    if (!recipient) {
-      return NextResponse.json({ success: false, error: 'ไม่พบรายชื่อนี้' }, { status: 404 });
-    }
-
-    if (!canManageProject(session, recipient.project.createdById)) {
+    if (deleted.count === 0) {
+      const existing = await prisma.recipient.findUnique({
+        where: { id },
+        select: { id: true },
+      });
+      if (!existing) {
+        return NextResponse.json({ success: false, error: 'ไม่พบรายชื่อนี้' }, { status: 404 });
+      }
       return NextResponse.json(
         {
           success: false,
@@ -82,10 +83,6 @@ export async function DELETE(
         { status: 403 }
       );
     }
-
-    await prisma.recipient.delete({
-      where: { id },
-    });
 
     return NextResponse.json({ success: true, message: 'ลบรายชื่อสำเร็จ' });
   } catch (error: any) {

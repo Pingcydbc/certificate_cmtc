@@ -90,9 +90,11 @@ export async function DELETE(
     const auth = await authorizeProjectAccess(request, id);
     if (auth.error) return auth.error;
 
-    await prisma.project.delete({
-      where: { id },
-    });
+    await prisma.$transaction([
+      prisma.recipient.deleteMany({ where: { projectId: id } }),
+      prisma.certificateTemplate.deleteMany({ where: { projectId: id } }),
+      prisma.project.delete({ where: { id } }),
+    ]);
 
     return NextResponse.json({ success: true, message: 'ลบโครงการสำเร็จ' });
   } catch (error: any) {
