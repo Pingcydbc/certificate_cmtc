@@ -4,6 +4,11 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { FolderPlus, ArrowLeft, Upload, Sparkles, Check, AlertCircle, Copy } from 'lucide-react';
+import {
+  uploadOptimizedImage,
+  safeReadJsonResponse,
+  formatImageLabel,
+} from '@/lib/imageUpload';
 
 interface CloneSourceProject {
   id: string;
@@ -50,15 +55,8 @@ export default function NewProjectPage() {
     try {
       setUploading(true);
       setError(null);
-      const fd = new FormData();
-      fd.append('file', file);
-
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        body: fd,
-      });
-      const data = await res.json();
-      if (data.success) {
+      const data = await uploadOptimizedImage(file, 'background');
+      if (data.success && data.url) {
         setBgImage(data.url);
       } else {
         setError(data.error || 'อัปโหลดรูปไม่สำเร็จ');
@@ -67,6 +65,7 @@ export default function NewProjectPage() {
       setError(err.message || 'เกิดข้อผิดพลาดในการอัปโหลด');
     } finally {
       setUploading(false);
+      e.target.value = '';
     }
   };
 
@@ -95,8 +94,8 @@ export default function NewProjectPage() {
         }),
       });
 
-      const data = await res.json();
-      if (data.success) {
+      const data = await safeReadJsonResponse(res);
+      if (data.success && data.project) {
         // Redirect to visual editor for this project
         router.push(`/admin/project/${data.project.id}/editor`);
       } else {
@@ -282,7 +281,7 @@ export default function NewProjectPage() {
                   {uploading ? 'กำลังอัปโหลด...' : 'เลือกรูปภาพใหม่'}
                   <input
                     type="file"
-                    accept="image/jpeg,image/png"
+                    accept="image/jpeg,image/png,image/webp"
                     onChange={handleImageUpload}
                     disabled={uploading}
                     className="hidden"
@@ -300,7 +299,7 @@ export default function NewProjectPage() {
                   />
                 </div>
                 <div className="text-xs text-slate-500 space-y-1">
-                  <p className="font-mono text-slate-700 truncate max-w-xs">{bgImage}</p>
+                  <p className="font-mono text-slate-700 truncate max-w-xs">{formatImageLabel(bgImage)}</p>
                   <p className="text-[11px] text-emerald-600 flex items-center gap-1 font-semibold">
                     <Check className="w-3.5 h-3.5" />
                     พร้อมใช้งานใน Visual Editor ทันที

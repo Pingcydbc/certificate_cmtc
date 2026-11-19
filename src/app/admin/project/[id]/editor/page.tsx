@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -20,6 +20,11 @@ import {
   Loader2
 } from 'lucide-react';
 import CertificateCanvas, { CanvasElement } from '@/components/CertificateCanvas';
+import {
+  uploadOptimizedImage,
+  safeReadJsonResponse,
+  formatImageLabel,
+} from '@/lib/imageUpload';
 
 interface CloneSourceProject {
   id: string;
@@ -92,6 +97,8 @@ export default function CertificateEditorPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
+  const savedBgImageRef = useRef<string | null>(null);
+  const hasTemplateRecordRef = useRef<boolean>(false);
 
   // Clone template modal state
   const [showCloneModal, setShowCloneModal] = useState(false);
@@ -108,19 +115,24 @@ export default function CertificateEditorPage() {
         setSaving(true);
         setSaveError(null);
 
+        const shouldSendBackground =
+          !hasTemplateRecordRef.current || currentBgImage !== savedBgImageRef.current;
+
         const res = await fetch(`/api/templates/${id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            backgroundImage: currentBgImage,
+            ...(shouldSendBackground ? { backgroundImage: currentBgImage } : {}),
             width: 990,
             height: 698,
             elements: currentElements,
           }),
         });
 
-        const data = await res.json();
+        const data = await safeReadJsonResponse(res);
         if (data.success) {
+          savedBgImageRef.current = currentBgImage;
+          hasTemplateRecordRef.current = true;
           setIsDirty(false);
           const nowStr = new Date().toLocaleTimeString('th-TH', {
             hour: '2-digit',
@@ -180,8 +192,8 @@ export default function CertificateEditorPage() {
           fetch(`/api/recipients?projectId=${id}&limit=1`),
         ]);
 
-        const projData = await projRes.json();
-        const recipData = await recipRes.json();
+        const projData = await safeReadJsonResponse(projRes);
+        const recipData = await safeReadJsonResponse(recipRes);
 
         if (projData.success && projData.project) {
           const p = projData.project;
@@ -191,7 +203,10 @@ export default function CertificateEditorPage() {
           });
 
           if (p.template) {
-            setBgImage(p.template.backgroundImage || '/uploads/NSDV01.jpg');
+            const loadedBg = p.template.backgroundImage || '/uploads/NSDV01.jpg';
+            setBgImage(loadedBg);
+            savedBgImageRef.current = loadedBg;
+            hasTemplateRecordRef.current = true;
             if (p.template.elements && p.template.elements.length > 0) {
               setElements(normalizeElements(p.template.elements));
             }
@@ -217,25 +232,20 @@ export default function CertificateEditorPage() {
 
     try {
       setUploading(true);
-      const fd = new FormData();
-      fd.append('file', file);
-
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        body: fd,
-      });
-      const data = await res.json();
-      if (data.success) {
+      setSaveError(null);
+      const data = await uploadOptimizedImage(file, 'background');
+      if (data.success && data.url) {
         setBgImage(data.url);
         setIsDirty(true);
         setSavedSuccess(false);
       } else {
-        alert(data.error || 'อัปโหลดไม่สำเร็จ');
+        setSaveError(data.error || 'อัปโหลดไม่สำเร็จ');
       }
     } catch (err: any) {
-      alert('เกิดข้อผิดพลาดในการอัปโหลดรูปพื้นหลัง');
+      setSaveError(err?.message || 'เกิดข้อผิดพลาดในการอัปโหลดรูปพื้นหลัง');
     } finally {
       setUploading(false);
+      e.target.value = '';
     }
   };
 
@@ -286,11 +296,13 @@ export default function CertificateEditorPage() {
           mode: cloneMode,
         }),
       });
-      const data = await res.json();
+      const data = await safeReadJsonResponse(res);
       if (data.success && data.template) {
         if (cloneMode === 'full' && data.template.backgroundImage) {
           setBgImage(data.template.backgroundImage);
+          savedBgImageRef.current = data.template.backgroundImage;
         }
+        hasTemplateRecordRef.current = true;
         setElements(normalizeElements(data.template.elements || []));
         setIsDirty(false);
         const nowStr = new Date().toLocaleTimeString('th-TH', {
@@ -473,7 +485,7 @@ export default function CertificateEditorPage() {
         <div className="flex items-center gap-3">
           <span className="font-semibold text-slate-700">ภาพพื้นหลังปัจจุบัน:</span>
           <span className="font-mono text-cmtc-800 bg-red-50 px-2 py-1 rounded border border-red-200/60 truncate max-w-xs font-medium">
-            {bgImage}
+            {formatImageLabel(bgImage)}
           </span>
         </div>
 
@@ -482,7 +494,7 @@ export default function CertificateEditorPage() {
           {uploading ? 'กำลังเปลี่ยนรูป...' : 'เปลี่ยนรูปพื้นหลัง (JPG/PNG)'}
           <input
             type="file"
-            accept="image/jpeg,image/png"
+            accept="image/jpeg,image/png,image/webp"
             onChange={handleUploadBg}
             disabled={uploading}
             className="hidden"

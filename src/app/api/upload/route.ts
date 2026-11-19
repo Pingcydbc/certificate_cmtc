@@ -47,6 +47,16 @@ export async function POST(request: NextRequest) {
     // 2. If running on Vercel / serverless without Blob Token, use Base64 Data URL
     if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
       const base64Data = `data:${file.type};base64,${buffer.toString('base64')}`;
+      if (base64Data.length > 3_800_000) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              'ไฟล์รูปภาพมีขนาดใหญ่เกินไปสำหรับการบันทึกบน Vercel (จำกัด ~2.5 MB เมื่อไม่ได้เปิดใช้ Vercel Blob) กรุณาลดขนาดไฟล์หรือความละเอียดภาพแล้วลองใหม่',
+          },
+          { status: 413 }
+        );
+      }
       return NextResponse.json({
         success: true,
         url: base64Data,

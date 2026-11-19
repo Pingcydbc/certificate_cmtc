@@ -50,6 +50,7 @@ import {
   HelpCircle,
   FileCheck
 } from 'lucide-react';
+import { uploadOptimizedImage } from '@/lib/imageUpload';
 
 export interface CanvasElement {
   id: string;
@@ -1717,15 +1718,7 @@ export default function CertificateCanvas({
 
     try {
       setUploadingImage(true);
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await res.json();
+      const data = await uploadOptimizedImage(file, 'element');
       if (data.success && data.url) {
         pushHistory(elements);
         const newId = `img_${Date.now()}`;
