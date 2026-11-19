@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || '';
     const activeOnly = searchParams.get('activeOnly') === 'true';
     const scope = searchParams.get('scope') || '';
+    const minimal = searchParams.get('minimal') === 'true';
 
     const where: any = {};
     if (activeOnly && scope !== 'manage') {
@@ -49,6 +50,33 @@ export async function GET(request: NextRequest) {
       ];
     }
 
+    if (minimal) {
+      const projects = await prisma.project.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          code: true,
+          title: true,
+        },
+      });
+
+      return NextResponse.json(
+        {
+          success: true,
+          projects,
+        },
+        {
+          headers:
+            activeOnly && scope !== 'manage'
+              ? { 'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60' }
+              : undefined,
+        }
+      );
+    }
+
     const [total, projects] = await Promise.all([
       prisma.project.count({ where }),
       prisma.project.findMany({
@@ -60,7 +88,6 @@ export async function GET(request: NextRequest) {
           template: {
             select: {
               id: true,
-              backgroundImage: true,
               width: true,
               height: true,
             },
@@ -100,16 +127,24 @@ export async function GET(request: NextRequest) {
 
     const totalPages = Math.ceil(total / limit);
 
-    return NextResponse.json({
-      success: true,
-      projects,
-      pagination: {
-        total,
-        totalPages,
-        currentPage: page,
-        limit,
+    return NextResponse.json(
+      {
+        success: true,
+        projects,
+        pagination: {
+          total,
+          totalPages,
+          currentPage: page,
+          limit,
+        },
       },
-    });
+      {
+        headers:
+          activeOnly && scope !== 'manage'
+            ? { 'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60' }
+            : undefined,
+      }
+    );
   } catch (error: any) {
     console.error('Error fetching projects:', error);
     return NextResponse.json(

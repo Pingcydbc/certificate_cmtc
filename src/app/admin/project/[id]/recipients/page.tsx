@@ -83,10 +83,24 @@ export default function RecipientsManagementPage() {
   const [recipients, setRecipients] = useState<RecipientItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [previewCertRecipient, setPreviewCertRecipient] = useState<RecipientItem | null>(null);
+  const [previewVersion, setPreviewVersion] = useState<number>(0);
+
+  const openPreviewModal = useCallback((recip: RecipientItem) => {
+    setPreviewVersion(Date.now());
+    setPreviewCertRecipient(recip);
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   // Excel state
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -124,12 +138,12 @@ export default function RecipientsManagementPage() {
   const [noteMode, setNoteMode] = useState<'column' | 'includeAllExtra' | 'none'>('column');
   const [noteColIdx, setNoteColIdx] = useState<number>(-1);
 
-  // Load project info
+  // Load project info (without heavy template payload)
   const loadProject = useCallback(async () => {
     try {
       setProjectLoading(true);
       setProjectError(null);
-      const res = await fetch(`/api/projects/${id}`);
+      const res = await fetch(`/api/projects/${id}?includeTemplate=false`);
       const data = await res.json();
       if (data.success && data.project) {
         setProject(data.project);
@@ -146,13 +160,13 @@ export default function RecipientsManagementPage() {
     }
   }, [id]);
 
-  // Load recipients
+  // Load recipients (runs in parallel with loadProject instead of waiting)
   const loadRecipients = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams({
         projectId: id,
-        query: search.trim(),
+        query: debouncedSearch.trim(),
         page: currentPage.toString(),
         limit: '15',
       });
@@ -168,17 +182,17 @@ export default function RecipientsManagementPage() {
     } finally {
       setLoading(false);
     }
-  }, [id, search, currentPage]);
+  }, [id, debouncedSearch, currentPage]);
 
   useEffect(() => {
     loadProject();
   }, [loadProject]);
 
   useEffect(() => {
-    if (project) {
+    if (id) {
       loadRecipients();
     }
-  }, [project, loadRecipients]);
+  }, [id, loadRecipients]);
 
   // Request preview for a file and specific sheet
   const fetchPreview = async (file: File, sheetName?: string) => {
@@ -1368,7 +1382,7 @@ export default function RecipientsManagementPage() {
             {recipients.length > 0 && (
               <button
                 type="button"
-                onClick={() => setPreviewCertRecipient(recipients[0])}
+                onClick={() => openPreviewModal(recipients[0])}
                 className="px-4 py-2 rounded-xl bg-cmtc-800 hover:bg-cmtc-900 text-white text-xs font-bold flex items-center gap-2 shadow-md shadow-red-900/15 transition-all hover:scale-[1.02] active:scale-[0.98]"
                 title="ดูตัวอย่างเกียรติบัตรจริงพร้อมรูปภาพและโลโก้ที่บันทึกไว้"
               >
@@ -1449,7 +1463,7 @@ export default function RecipientsManagementPage() {
                       <div className="flex items-center justify-end gap-1.5">
                         <button
                           type="button"
-                          onClick={() => setPreviewCertRecipient(recip)}
+                          onClick={() => openPreviewModal(recip)}
                           className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-red-50 text-cmtc-800 border border-red-200 text-[11px] font-semibold flex items-center gap-1 transition-colors shadow-xs"
                           title="ดูตัวอย่างเกียรติบัตรจริงพร้อมโลโก้"
                         >
@@ -1523,7 +1537,7 @@ export default function RecipientsManagementPage() {
               <div className="relative rounded-2xl overflow-hidden cert-shadow border border-slate-200 max-w-full bg-white">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={`/api/certificates/render?recipientId=${previewCertRecipient.id}&format=png&v=${Date.now()}`}
+                  src={`/api/certificates/render?recipientId=${previewCertRecipient.id}&format=png&v=${previewVersion}`}
                   alt={`เกียรติบัตร ${previewCertRecipient.fullName}`}
                   className="w-full h-auto max-h-[60vh] object-contain block select-none"
                 />

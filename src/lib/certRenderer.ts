@@ -13,11 +13,19 @@ export function registerCustomFonts() {
 
   const fontsToRegister = [
     { file: 'THSarabunNew.ttf', name: 'TH Sarabun New' },
-    { file: 'THSarabunNew-Bold.ttf', name: 'TH Sarabun New Bold' },
+    { file: 'THSarabunNew-Bold.ttf', name: 'TH Sarabun New' },
     { file: 'Sarabun-Regular.ttf', name: 'Sarabun' },
     { file: 'Sarabun-Bold.ttf', name: 'Sarabun' },
     { file: 'Prompt-Regular.ttf', name: 'Prompt' },
     { file: 'Prompt-Bold.ttf', name: 'Prompt' },
+    { file: 'ChakraPetch-Regular.ttf', name: 'Chakra Petch' },
+    { file: 'ChakraPetch-Bold.ttf', name: 'Chakra Petch' },
+    { file: 'Kanit-Regular.ttf', name: 'Kanit' },
+    { file: 'Kanit-Bold.ttf', name: 'Kanit' },
+    { file: 'Mali-Regular.ttf', name: 'Mali' },
+    { file: 'Mali-Bold.ttf', name: 'Mali' },
+    { file: 'Niramit-Regular.ttf', name: 'Niramit' },
+    { file: 'Niramit-Bold.ttf', name: 'Niramit' },
   ];
 
   for (const f of fontsToRegister) {
@@ -36,8 +44,8 @@ export function registerCustomFonts() {
 
 export interface RenderElement {
   id?: string;
-  elementType: string; // 'dynamic' | 'static' | 'image'
-  fieldKey: string; // 'certNumber' | 'fullName' | 'organization' | 'eventDate' | 'customText' | 'image'
+  elementType: string; // 'dynamic' | 'static' | 'image' | 'qrcode'
+  fieldKey: string; // 'certNumber' | 'fullName' | 'organization' | 'eventDate' | 'customText' | 'image' | 'qrcode'
   defaultValue?: string | null;
   posX: number;
   posY: number;
@@ -54,6 +62,10 @@ export interface RenderElement {
   opacity?: number | null;
   width?: number | null; // For image width
   height?: number | null; // For image height
+  filterSharpen?: number | null;
+  filterBrightness?: number | null;
+  filterContrast?: number | null;
+  removeWhiteBg?: boolean | null;
 }
 
 export interface RenderRecipient {
@@ -93,8 +105,30 @@ function resolveImagePath(imgPath: string): string {
   return imgPath;
 }
 
+const MAX_IMAGE_CACHE_SIZE = 40;
+const serverImageCache = new Map<string, any>();
+
+function setCachedServerImage(key: string, img: any) {
+  if (key.startsWith('data:')) return;
+  if (serverImageCache.size >= MAX_IMAGE_CACHE_SIZE) {
+    const oldestKey = serverImageCache.keys().next().value;
+    if (oldestKey !== undefined) {
+      serverImageCache.delete(oldestKey);
+    }
+  }
+  serverImageCache.set(key, img);
+}
+
 async function loadServerImage(imgPathOrUrl: string): Promise<any> {
   if (!imgPathOrUrl) return null;
+
+  if (!imgPathOrUrl.startsWith('data:') && serverImageCache.has(imgPathOrUrl)) {
+    const cached = serverImageCache.get(imgPathOrUrl);
+    // Refresh LRU order
+    serverImageCache.delete(imgPathOrUrl);
+    serverImageCache.set(imgPathOrUrl, cached);
+    return cached;
+  }
 
   if (imgPathOrUrl.startsWith('data:')) {
     try {
@@ -110,7 +144,9 @@ async function loadServerImage(imgPathOrUrl: string): Promise<any> {
       const res = await fetch(imgPathOrUrl);
       if (res.ok) {
         const buf = Buffer.from(await res.arrayBuffer());
-        return await loadImage(buf);
+        const img = await loadImage(buf);
+        setCachedServerImage(imgPathOrUrl, img);
+        return img;
       }
     } catch (e) {
       console.warn(`Failed to fetch remote image ${imgPathOrUrl}:`, e);
@@ -121,7 +157,9 @@ async function loadServerImage(imgPathOrUrl: string): Promise<any> {
   const fullImgPath = resolveImagePath(imgPathOrUrl);
   if (fs.existsSync(fullImgPath)) {
     try {
-      return await loadImage(fullImgPath);
+      const img = await loadImage(fullImgPath);
+      setCachedServerImage(imgPathOrUrl, img);
+      return img;
     } catch (err) {
       console.warn(`Failed to render local image ${fullImgPath}:`, err);
     }
@@ -139,7 +177,9 @@ async function loadServerImage(imgPathOrUrl: string): Promise<any> {
         const res = await fetch(fullUrl);
         if (res.ok) {
           const buf = Buffer.from(await res.arrayBuffer());
-          return await loadImage(buf);
+          const img = await loadImage(buf);
+          setCachedServerImage(imgPathOrUrl, img);
+          return img;
         }
       } catch (e) {
         console.warn(`Failed to fetch relative image via base URL ${imgPathOrUrl}:`, e);
@@ -148,6 +188,29 @@ async function loadServerImage(imgPathOrUrl: string): Promise<any> {
   }
 
   return null;
+}
+
+function parseServerImageMetadata(el: RenderElement) {
+  const raw = el.defaultValue || '';
+  if (raw.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(raw);
+      return {
+        url: String(parsed.url || ''),
+        removeWhiteBg: parsed.removeWhiteBg !== undefined ? Boolean(parsed.removeWhiteBg) : Boolean(el.removeWhiteBg),
+        sharpenLevel: parsed.sharpen !== undefined ? Number(parsed.sharpen) || 0 : Number(el.filterSharpen) || 0,
+        brightness: parsed.brightness !== undefined ? Number(parsed.brightness) || 0 : Number(el.filterBrightness) || 0,
+        contrast: parsed.contrast !== undefined ? Number(parsed.contrast) || 0 : Number(el.filterContrast) || 0,
+      };
+    } catch (e) {}
+  }
+  return {
+    url: raw,
+    removeWhiteBg: Boolean(el.removeWhiteBg),
+    sharpenLevel: Number(el.filterSharpen) || 0,
+    brightness: Number(el.filterBrightness) || 0,
+    contrast: Number(el.filterContrast) || 0,
+  };
 }
 
 export async function renderCertificateCanvas(params: RenderCertificateParams) {
@@ -160,11 +223,34 @@ export async function renderCertificateCanvas(params: RenderCertificateParams) {
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext('2d');
 
-  // Load Background Image (Supports local path or remote URL)
-  let bgImage: any = null;
+  // Pre-load background and all unique element images in parallel
+  const imageMetaByElement = new Map<RenderElement, ReturnType<typeof parseServerImageMetadata>>();
+  const uniqueUrls = new Set<string>();
   if (template.backgroundImage) {
-    bgImage = await loadServerImage(template.backgroundImage);
+    uniqueUrls.add(template.backgroundImage);
   }
+  for (const el of template.elements) {
+    if (el.elementType === 'image') {
+      const meta = parseServerImageMetadata(el);
+      imageMetaByElement.set(el, meta);
+      if (meta.url) {
+        uniqueUrls.add(meta.url);
+      }
+    }
+  }
+
+  const loadedImagesMap = new Map<string, any>();
+  await Promise.all(
+    Array.from(uniqueUrls).map(async (url) => {
+      const img = await loadServerImage(url);
+      if (img) {
+        loadedImagesMap.set(url, img);
+      }
+    })
+  );
+
+  // Draw Background Image
+  const bgImage = template.backgroundImage ? loadedImagesMap.get(template.backgroundImage) : null;
 
   if (bgImage) {
     ctx.drawImage(bgImage, 0, 0, width, height);
@@ -187,21 +273,11 @@ export async function renderCertificateCanvas(params: RenderCertificateParams) {
 
     // 1. Image Element (Logo, Stamp, Signature, PNG/JPG)
     if (el.elementType === 'image') {
-      let imgPathOrUrl = el.defaultValue || '';
-      let removeWhiteBg = false;
-      let sharpenLevel = 0;
-
-      if (imgPathOrUrl.startsWith('{')) {
-        try {
-          const parsed = JSON.parse(imgPathOrUrl);
-          imgPathOrUrl = parsed.url || '';
-          removeWhiteBg = Boolean(parsed.removeWhiteBg);
-          sharpenLevel = Number(parsed.sharpen) || 0;
-        } catch (e) {}
-      }
+      const meta = imageMetaByElement.get(el) || parseServerImageMetadata(el);
+      const { url: imgPathOrUrl, removeWhiteBg, sharpenLevel, brightness, contrast } = meta;
 
       if (imgPathOrUrl) {
-        const loadedImg = await loadServerImage(imgPathOrUrl);
+        const loadedImg = loadedImagesMap.get(imgPathOrUrl);
 
         if (loadedImg) {
           const imgW = Math.round((el.width || 120) * scale);
@@ -209,7 +285,7 @@ export async function renderCertificateCanvas(params: RenderCertificateParams) {
           const imgX = Math.round((el.posX - (el.width || 120) / 2) * scale);
           const imgY = Math.round((el.posY - (el.height || 120) / 2) * scale);
 
-          if (removeWhiteBg || sharpenLevel > 0) {
+          if (removeWhiteBg || sharpenLevel > 0 || brightness !== 0 || contrast !== 0) {
             try {
               const tempCanvas = createCanvas(imgW, imgH);
               const tempCtx = tempCanvas.getContext('2d');
@@ -217,13 +293,25 @@ export async function renderCertificateCanvas(params: RenderCertificateParams) {
               const imgData = tempCtx.getImageData(0, 0, imgW, imgH);
               const data = imgData.data;
 
+              if (brightness !== 0 || contrast !== 0) {
+                const brightnessFactor = Math.max(0, (100 + brightness) / 100);
+                const contrastFactor = Math.max(0, (100 + contrast) / 100);
+                for (let i = 0; i < data.length; i += 4) {
+                  for (let c = 0; c < 3; c++) {
+                    const brightened = data[i + c] * brightnessFactor;
+                    const contrasted = (brightened - 128) * contrastFactor + 128;
+                    data[i + c] = Math.min(255, Math.max(0, contrasted));
+                  }
+                }
+              }
+
               if (removeWhiteBg) {
                 for (let i = 0; i < data.length; i += 4) {
-                  const brightness = (data[i] + data[i + 1] + data[i + 2]) / 3;
-                  if (brightness > 220) {
+                  const lum = (data[i] + data[i + 1] + data[i + 2]) / 3;
+                  if (lum > 220) {
                     data[i + 3] = 0;
-                  } else if (brightness > 180) {
-                    data[i + 3] = Math.round(data[i + 3] * ((220 - brightness) / 40));
+                  } else if (lum > 180) {
+                    data[i + 3] = Math.round(data[i + 3] * ((220 - lum) / 40));
                   }
                 }
               }
@@ -290,7 +378,7 @@ export async function renderCertificateCanvas(params: RenderCertificateParams) {
       continue;
     }
 
-    // 2. Text Element (Dynamic or Static)
+    // 3. Text Element (Dynamic or Static)
     let text = '';
     if (el.elementType === 'dynamic') {
       if (el.fieldKey === 'certNumber') {
@@ -332,9 +420,9 @@ export async function renderCertificateCanvas(params: RenderCertificateParams) {
     const isBold = el.fontWeight === 'bold';
     const isItalic = el.fontStyle === 'italic';
 
-    // Construct Font Style string (e.g., 'italic bold 32px "Sarabun"')
+    // Match CertificateCanvas.tsx font string identically
     const stylePrefix = `${isItalic ? 'italic ' : ''}${isBold ? 'bold ' : ''}`;
-    ctx.font = `${stylePrefix}${scaledFontSize}px "${family}", "TH Sarabun New", "Prompt", sans-serif`;
+    ctx.font = `${stylePrefix}${scaledFontSize}px "${family}", sans-serif`;
     ctx.fillStyle = el.fontColor || '#000000';
     ctx.textAlign = (el.textAlign as CanvasTextAlign) || 'center';
     ctx.textBaseline = 'middle';
@@ -350,7 +438,7 @@ export async function renderCertificateCanvas(params: RenderCertificateParams) {
       const currentY = posY + lineOffset;
       ctx.fillText(line, posX, currentY);
 
-      // Handle Underline
+      // Handle Underline (matching CertificateCanvas.tsx offset and stroke width)
       if (el.isUnderline) {
         const textMetrics = ctx.measureText(line);
         const textW = textMetrics.width;
@@ -358,9 +446,9 @@ export async function renderCertificateCanvas(params: RenderCertificateParams) {
         if (ctx.textAlign === 'center') startX = posX - textW / 2;
         else if (ctx.textAlign === 'right') startX = posX - textW;
 
-        const underlineY = currentY + scaledFontSize * 0.55;
+        const underlineY = currentY + scaledFontSize * 0.45;
         ctx.strokeStyle = el.fontColor || '#000000';
-        ctx.lineWidth = Math.max(1, 1.5 * scale);
+        ctx.lineWidth = Math.max(1, scaledFontSize * 0.06);
         ctx.beginPath();
         ctx.moveTo(startX, underlineY);
         ctx.lineTo(startX + textW, underlineY);

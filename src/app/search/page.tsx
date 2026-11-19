@@ -60,7 +60,7 @@ function SearchPageContent() {
   useEffect(() => {
     async function loadProjects() {
       try {
-        const res = await fetch('/api/projects?limit=100&activeOnly=true');
+        const res = await fetch('/api/projects?limit=100&activeOnly=true&minimal=true');
         const data = await res.json();
         if (data.success) {
           setProjectsList(data.projects);

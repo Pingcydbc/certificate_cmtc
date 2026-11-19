@@ -5,6 +5,9 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['@napi-rs/canvas'],
     optimizePackageImports: ['lucide-react'],
+    outputFileTracingIncludes: {
+      '/api/certificates/render': ['./public/fonts/**/*'],
+    },
   },
   webpack: (config) => {
     config.externals.push({

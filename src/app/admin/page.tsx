@@ -24,6 +24,7 @@ import {
   User
 } from 'lucide-react';
 import Pagination from '@/components/Pagination';
+import { fetchAuthMe, clearAuthMeCache } from '@/lib/clientAuth';
 
 interface AdminProject {
   id: string;
@@ -46,7 +47,6 @@ interface AdminProject {
   };
   template?: {
     id: string;
-    backgroundImage: string;
     width: number;
     height: number;
   } | null;
@@ -63,14 +63,21 @@ export default function AdminDashboardPage() {
   const [projects, setProjects] = useState<AdminProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [currentUser, setCurrentUser] = useState<{ id: string; username: string; role: string } | null>(null);
 
   useEffect(() => {
-    fetch('/api/auth/me')
-      .then((res) => res.json())
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
+    fetchAuthMe()
       .then((data) => {
         if (data.authenticated && data.user) {
           setCurrentUser(data.user);
@@ -83,6 +90,7 @@ export default function AdminDashboardPage() {
     if (!confirm('ยืนยันการออกจากระบบผู้ดูแล?')) return;
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
+      clearAuthMeCache();
       router.push('/admin/login');
       router.refresh();
     } catch (e) {
@@ -96,7 +104,7 @@ export default function AdminDashboardPage() {
       const params = new URLSearchParams({
         page: currentPage.toString(),
         limit: '10',
-        search: search.trim(),
+        search: debouncedSearch.trim(),
         scope: 'manage',
       });
       const res = await fetch(`/api/projects?${params.toString()}`);
@@ -111,7 +119,7 @@ export default function AdminDashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, search]);
+  }, [currentPage, debouncedSearch]);
 
   useEffect(() => {
     fetchProjects();

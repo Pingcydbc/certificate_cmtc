@@ -17,13 +17,9 @@ import {
   User
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { fetchAuthMe, clearAuthMeCache, ClientAuthUser } from '@/lib/clientAuth';
 
-interface AuthUser {
-  id: string;
-  username: string;
-  name?: string;
-  role: string;
-}
+type AuthUser = ClientAuthUser;
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -36,18 +32,13 @@ export default function Navbar() {
   useEffect(() => {
     let isMounted = true;
     async function checkAuth() {
-      try {
-        const res = await fetch('/api/auth/me');
-        const data = await res.json();
-        if (isMounted) {
-          if (data.authenticated && data.user) {
-            setAdminUser(data.user);
-          } else {
-            setAdminUser(null);
-          }
+      const data = await fetchAuthMe();
+      if (isMounted) {
+        if (data.authenticated && data.user) {
+          setAdminUser(data.user);
+        } else {
+          setAdminUser(null);
         }
-      } catch (e) {
-        if (isMounted) setAdminUser(null);
       }
     }
     checkAuth();
@@ -61,6 +52,7 @@ export default function Navbar() {
     try {
       setLoggingOut(true);
       await fetch('/api/auth/logout', { method: 'POST' });
+      clearAuthMeCache();
       setAdminUser(null);
       router.push('/admin/login');
       router.refresh();

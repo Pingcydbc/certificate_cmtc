@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { fetchAuthMe } from '@/lib/clientAuth';
 import {
   Users,
   UserPlus,
@@ -66,17 +67,17 @@ export default function UserManagementPage() {
       setLoading(true);
       setError(null);
 
-      // Verify current user role
-      const meRes = await fetch('/api/auth/me');
-      const meData = await meRes.json();
+      // Verify current user role and fetch users list in parallel
+      const [meData, res] = await Promise.all([
+        fetchAuthMe(),
+        fetch('/api/users'),
+      ]);
       if (!meData.authenticated || meData.user?.role !== 'admin') {
         router.push('/admin');
         return;
       }
       setCurrentUser(meData.user);
 
-      // Fetch users list
-      const res = await fetch('/api/users');
       const data = await res.json();
       if (data.success) {
         setUsers(data.users || []);

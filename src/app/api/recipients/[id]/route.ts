@@ -14,12 +14,12 @@ export async function GET(
       where: { id },
       include: {
         project: {
-          include: {
-            template: {
-              include: {
-                elements: true,
-              },
-            },
+          select: {
+            id: true,
+            code: true,
+            title: true,
+            eventDate: true,
+            location: true,
           },
         },
       },
@@ -29,7 +29,14 @@ export async function GET(
       return NextResponse.json({ success: false, error: 'ไม่พบข้อมูลผู้รับเกียรติบัตร' }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, recipient });
+    return NextResponse.json(
+      { success: true, recipient },
+      {
+        headers: {
+          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+        },
+      }
+    );
   } catch (error: any) {
     console.error('Error fetching recipient:', error);
     return NextResponse.json(

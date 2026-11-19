@@ -92,6 +92,7 @@ interface CertificateCanvasProps {
     note?: string;
     eventDate?: string;
     location?: string;
+    projectTitle?: string;
   };
 }
 
@@ -577,6 +578,7 @@ export default function CertificateCanvas({
         else if (el.fieldKey === 'organization') text = sampleData.organization || 'ชื่อหน่วยงาน / สถานศึกษา';
         else if (el.fieldKey === 'note') text = sampleData.note || 'หมายเหตุ';
         else if (el.fieldKey === 'eventDate') text = sampleData.eventDate || '12-14 พฤษภาคม 2569';
+        else if (el.fieldKey === 'location') text = sampleData.location || 'สถานที่จัดงาน';
         else text = el.defaultValue || '';
       } else {
         text = el.defaultValue || '';
@@ -587,7 +589,9 @@ export default function CertificateCanvas({
         .replace(/{fullName}/g, sampleData.fullName || '')
         .replace(/{organization}/g, sampleData.organization || '')
         .replace(/{note}/g, sampleData.note || '')
-        .replace(/{eventDate}/g, sampleData.eventDate || '');
+        .replace(/{eventDate}/g, sampleData.eventDate || '')
+        .replace(/{location}/g, sampleData.location || '')
+        .replace(/{projectTitle}/g, sampleData.projectTitle || '');
     },
     [isPreviewMode, sampleData]
   );
@@ -1068,6 +1072,21 @@ export default function CertificateCanvas({
 
   useEffect(() => {
     drawCanvas();
+  }, [drawCanvas]);
+
+  // Redraw canvas after browser webfonts (@font-face) finish loading
+  useEffect(() => {
+    if (typeof document === 'undefined' || !('fonts' in document)) return;
+    let active = true;
+    const redraw = () => {
+      if (active) drawCanvas();
+    };
+    document.fonts.ready.then(redraw);
+    document.fonts.addEventListener?.('loadingdone', redraw);
+    return () => {
+      active = false;
+      document.fonts.removeEventListener?.('loadingdone', redraw);
+    };
   }, [drawCanvas]);
 
   // Pointer & Mouse coordinates relative to Canvas

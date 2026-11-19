@@ -13,14 +13,20 @@ export async function GET(
     const auth = await authorizeProjectAccess(request, id);
     if (auth.error) return auth.error;
 
+    const includeTemplate = new URL(request.url).searchParams.get('includeTemplate') !== 'false';
+
     const project = await prisma.project.findUnique({
       where: { id },
       include: {
-        template: {
-          include: {
-            elements: true,
-          },
-        },
+        ...(includeTemplate
+          ? {
+              template: {
+                include: {
+                  elements: true,
+                },
+              },
+            }
+          : {}),
         _count: {
           select: { recipients: true },
         },

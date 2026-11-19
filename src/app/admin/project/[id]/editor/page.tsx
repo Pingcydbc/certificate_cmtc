@@ -402,6 +402,7 @@ export default function CertificateEditorPage() {
             organization: sampleRecipient.organization || 'วิทยาลัยเทคนิคตาก',
             eventDate: project.eventDate || '12-14 พฤษภาคม 2569',
             location: project.location || 'วิทยาลัยเทคนิคตาก',
+            projectTitle: project.title,
           }}
         />
       </div>
