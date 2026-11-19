@@ -150,3 +150,34 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const projectId = request.nextUrl.searchParams.get('projectId');
+    if (!projectId) {
+      return NextResponse.json(
+        { success: false, error: 'projectId จำเป็นต้องระบุ' },
+        { status: 400 }
+      );
+    }
+
+    const auth = await authorizeProjectAccess(request, projectId);
+    if (auth.error) return auth.error;
+
+    const deleted = await prisma.recipient.deleteMany({
+      where: { projectId },
+    });
+
+    return NextResponse.json({
+      success: true,
+      deletedCount: deleted.count,
+      message: `ลบรายชื่อทั้งหมดในโครงการเรียบร้อยแล้ว (${deleted.count} รายชื่อ)`,
+    });
+  } catch (error: any) {
+    console.error('Error clearing recipients:', error);
+    return NextResponse.json(
+      { success: false, error: error.message || 'Failed to clear recipients' },
+      { status: 500 }
+    );
+  }
+}

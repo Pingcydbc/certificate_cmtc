@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getRequestSession } from '@/lib/auth';
+import { getRequestSession, authorizeProjectAccess } from '@/lib/auth';
+import { mapTemplateElementsForCreate } from '@/lib/templateHelpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,6 +14,7 @@ export async function GET(request: NextRequest) {
     const activeOnly = searchParams.get('activeOnly') === 'true';
     const scope = searchParams.get('scope') || '';
     const minimal = searchParams.get('minimal') === 'true';
+    const forTemplateClone = searchParams.get('forTemplateClone') === 'true';
 
     const where: any = {};
     if (activeOnly && scope !== 'manage') {
@@ -48,6 +50,32 @@ export async function GET(request: NextRequest) {
           },
         },
       ];
+    }
+
+    if (forTemplateClone) {
+      const projects = await prisma.project.findMany({
+        where,
+        take: Math.min(limit, 200),
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          code: true,
+          title: true,
+          template: {
+            select: {
+              id: true,
+              _count: {
+                select: { elements: true },
+              },
+            },
+          },
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        projects,
+      });
     }
 
     if (minimal) {
@@ -165,7 +193,16 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { code, title, description, eventDate, location, backgroundImage } = body;
+    const {
+      code,
+      title,
+      description,
+      eventDate,
+      location,
+      backgroundImage,
+      sourceProjectId,
+      copyBackground = true,
+    } = body;
 
     if (!code || !title) {
       return NextResponse.json(
@@ -185,6 +222,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    let clonedBg = backgroundImage || '/uploads/NSDV01.jpg';
+    let clonedWidth = 990;
+    let clonedHeight = 698;
+    let clonedElements: any[] | null = null;
+
+    if (sourceProjectId) {
+      const sourceAuth = await authorizeProjectAccess(request, sourceProjectId);
+      if (sourceAuth.error) return sourceAuth.error;
+
+      const sourceTemplate = await prisma.certificateTemplate.findUnique({
+        where: { projectId: sourceProjectId },
+        include: { elements: true },
+      });
+
+      if (sourceTemplate) {
+        if (copyBackground) {
+          clonedBg = sourceTemplate.backgroundImage || clonedBg;
+        }
+        clonedWidth = sourceTemplate.width || 990;
+        clonedHeight = sourceTemplate.height || 698;
+        clonedElements = mapTemplateElementsForCreate(sourceTemplate.elements);
+      }
+    }
+
     const createdById = session.adminId;
 
     const project = await prisma.project.create({
@@ -198,11 +259,11 @@ export async function POST(request: NextRequest) {
         createdById: createdById,
         template: {
           create: {
-            backgroundImage: backgroundImage || '/uploads/NSDV01.jpg',
-            width: 990,
-            height: 698,
+            backgroundImage: clonedBg,
+            width: clonedWidth,
+            height: clonedHeight,
             elements: {
-              create: [
+              create: clonedElements ?? [
                 {
                   elementType: 'dynamic',
                   fieldKey: 'certNumber',

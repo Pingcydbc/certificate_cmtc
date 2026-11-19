@@ -21,9 +21,15 @@ import {
   ArrowRight,
   SlidersHorizontal,
   LogOut,
-  User
+  User,
+  Edit3,
+  FileDown,
+  X,
+  Save,
+  Loader2
 } from 'lucide-react';
 import Pagination from '@/components/Pagination';
+import BatchPdfModal from '@/components/BatchPdfModal';
 import { fetchAuthMe, clearAuthMeCache } from '@/lib/clientAuth';
 
 interface AdminProject {
@@ -68,6 +74,17 @@ export default function AdminDashboardPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [currentUser, setCurrentUser] = useState<{ id: string; username: string; role: string } | null>(null);
+
+  // Edit project modal state
+  const [editingProject, setEditingProject] = useState<AdminProject | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editEventDate, setEditEventDate] = useState('');
+  const [editLocation, setEditLocation] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  // Batch PDF modal state
+  const [batchPdfProject, setBatchPdfProject] = useState<AdminProject | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -162,6 +179,56 @@ export default function AdminDashboardPage() {
       }
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const openEditModal = (project: AdminProject) => {
+    setEditingProject(project);
+    setEditTitle(project.title);
+    setEditDescription(project.description || '');
+    setEditEventDate(project.eventDate || '');
+    setEditLocation(project.location || '');
+  };
+
+  const handleSaveProjectEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProject || !editTitle.trim()) return;
+
+    try {
+      setSavingEdit(true);
+      const res = await fetch(`/api/projects/${editingProject.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: editTitle.trim(),
+          description: editDescription.trim() || null,
+          eventDate: editEventDate.trim() || null,
+          location: editLocation.trim() || null,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.project) {
+        setProjects((prev) =>
+          prev.map((p) =>
+            p.id === editingProject.id
+              ? {
+                  ...p,
+                  title: data.project.title,
+                  description: data.project.description,
+                  eventDate: data.project.eventDate,
+                  location: data.project.location,
+                }
+              : p
+          )
+        );
+        setEditingProject(null);
+      } else {
+        alert(data.error || 'บันทึกข้อมูลโครงการไม่สำเร็จ');
+      }
+    } catch {
+      alert('เกิดข้อผิดพลาดในการบันทึกข้อมูลโครงการ');
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -406,50 +473,76 @@ export default function AdminDashboardPage() {
 
                 {/* Management Action Buttons */}
                 <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto shrink-0 pt-4 lg:pt-0 border-t lg:border-t-0 border-slate-100">
-                  {/* Visual Editor Button */}
-                  <Link
-                    href={`/admin/project/${project.id}/editor`}
-                    className="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl bg-white hover:bg-red-50 text-cmtc-800 border border-red-200 hover:border-red-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-sm"
-                  >
-                    <Palette className="w-4 h-4 text-cmtc-800" />
-                    <span>Visual Editor (ตกแต่งเกียรติบัตร)</span>
-                  </Link>
-
-                  {/* Excel Recipients Button */}
-                  <Link
-                    href={`/admin/project/${project.id}/recipients`}
-                    className="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-200 hover:border-emerald-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-sm"
-                  >
-                    <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-                    <span>จัดการ Excel ({project._count.recipients})</span>
-                  </Link>
-
-                  {/* Delete Button (Admin can delete any, User can delete only their own) */}
                   {(() => {
-                    const canDelete =
+                    const canManage =
                       currentUser?.role === 'admin' ||
                       (Boolean(currentUser?.id) && project.createdById === currentUser?.id);
 
-                    if (canDelete) {
-                      return (
-                        <button
-                          onClick={() => handleDeleteProject(project.id, project.title)}
-                          className="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100 transition-all"
-                          title="ลบโครงการ"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      );
-                    }
-
                     return (
-                      <button
-                        disabled
-                        className="p-2 rounded-xl text-slate-200 cursor-not-allowed opacity-50"
-                        title="คุณไม่มีสิทธิ์ลบโครงการนี้ (ลบได้เฉพาะโครงการที่ตนเองสร้าง)"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <>
+                        {/* Visual Editor Button */}
+                        <Link
+                          href={`/admin/project/${project.id}/editor`}
+                          className="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl bg-white hover:bg-red-50 text-cmtc-800 border border-red-200 hover:border-red-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                        >
+                          <Palette className="w-4 h-4 text-cmtc-800" />
+                          <span>Visual Editor</span>
+                        </Link>
+
+                        {/* Excel Recipients Button */}
+                        <Link
+                          href={`/admin/project/${project.id}/recipients`}
+                          className="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-200 hover:border-emerald-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                        >
+                          <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                          <span>จัดการ Excel ({project._count.recipients})</span>
+                        </Link>
+
+                        {/* Batch PDF by Sheet/Org Button */}
+                        {canManage && project._count.recipients > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setBatchPdfProject(project)}
+                            className="px-3 py-2 rounded-xl bg-white hover:bg-rose-50 text-rose-700 border border-rose-200 hover:border-rose-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                            title="ดาวน์โหลด PDF แยกตามชีต / สถานศึกษา"
+                          >
+                            <FileDown className="w-4 h-4 text-rose-600" />
+                            <span>PDF แยกชีต</span>
+                          </button>
+                        )}
+
+                        {/* Edit Project Details (Date, Location, Title, Description) */}
+                        {canManage && (
+                          <button
+                            type="button"
+                            onClick={() => openEditModal(project)}
+                            className="px-3 py-2 rounded-xl bg-white hover:bg-sky-50 text-sky-700 border border-sky-200 hover:border-sky-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                            title="แก้ไขวันที่จัดงาน สถานที่ และรายละเอียดโครงการ"
+                          >
+                            <Edit3 className="w-3.5 h-3.5 text-sky-600" />
+                            <span>แก้ไขข้อมูล</span>
+                          </button>
+                        )}
+
+                        {/* Delete Button */}
+                        {canManage ? (
+                          <button
+                            onClick={() => handleDeleteProject(project.id, project.title)}
+                            className="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100 transition-all"
+                            title="ลบโครงการ"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        ) : (
+                          <button
+                            disabled
+                            className="p-2 rounded-xl text-slate-200 cursor-not-allowed opacity-50"
+                            title="คุณไม่มีสิทธิ์จัดการโครงการนี้ (จัดการได้เฉพาะโครงการที่ตนเองสร้าง)"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </>
                     );
                   })()}
                 </div>
@@ -467,6 +560,125 @@ export default function AdminDashboardPage() {
           onPageChange={(p) => setCurrentPage(p)}
         />
       </div>
+
+      {/* Edit Project Modal (Date, Location, Title, Description) */}
+      {editingProject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fadeIn">
+          <form
+            onSubmit={handleSaveProjectEdit}
+            className="bg-white border border-slate-200 rounded-3xl max-w-xl w-full shadow-2xl overflow-hidden"
+          >
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-700">
+                  <Edit3 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm sm:text-base font-bold text-slate-900">
+                    แก้ไขข้อมูลโครงการ ({editingProject.code})
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    แก้ไขวันที่จัดงาน สถานที่ และรายละเอียดที่จะแสดงบนเกียรติบัตร
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingProject(null)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-cmtc-800" />
+                    วันที่จัดงาน (แสดงบนเกียรติบัตร)
+                  </label>
+                  <input
+                    type="text"
+                    value={editEventDate}
+                    onChange={(e) => setEditEventDate(e.target.value)}
+                    placeholder="เช่น 12-14 พฤษภาคม 2569"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 text-slate-900 text-xs border border-slate-200 focus:bg-white focus:ring-2 focus:ring-cmtc-700 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-cmtc-800" />
+                    ณ สถานที่จัดงาน
+                  </label>
+                  <input
+                    type="text"
+                    value={editLocation}
+                    onChange={(e) => setEditLocation(e.target.value)}
+                    placeholder="เช่น วิทยาลัยเทคนิคเชียงใหม่"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 text-slate-900 text-xs border border-slate-200 focus:bg-white focus:ring-2 focus:ring-cmtc-700 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 mb-1.5 block">
+                  ชื่อโครงการ / หลักสูตร <span className="text-red-600">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 text-slate-900 text-xs border border-slate-200 focus:bg-white focus:ring-2 focus:ring-cmtc-700 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 mb-1.5 block">
+                  รายละเอียดเพิ่มเติม
+                </label>
+                <textarea
+                  rows={3}
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 text-slate-900 text-xs border border-slate-200 focus:bg-white focus:ring-2 focus:ring-cmtc-700 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setEditingProject(null)}
+                className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 text-xs font-semibold"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="submit"
+                disabled={savingEdit || !editTitle.trim()}
+                className="px-5 py-2 rounded-xl bg-cmtc-800 hover:bg-cmtc-900 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+              >
+                {savingEdit ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                <span>{savingEdit ? 'กำลังบันทึก...' : 'บันทึกการเปลี่ยนแปลง'}</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Batch PDF Download Modal */}
+      {batchPdfProject && (
+        <BatchPdfModal
+          projectId={batchPdfProject.id}
+          projectCode={batchPdfProject.code}
+          projectTitle={batchPdfProject.title}
+          isOpen={Boolean(batchPdfProject)}
+          onClose={() => setBatchPdfProject(null)}
+        />
+      )}
     </div>
   );
 }

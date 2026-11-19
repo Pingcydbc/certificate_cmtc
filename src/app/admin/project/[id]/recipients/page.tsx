@@ -30,9 +30,11 @@ import {
   Info,
   Download,
   ExternalLink,
-  X
+  X,
+  FileDown
 } from 'lucide-react';
 import Pagination from '@/components/Pagination';
+import BatchPdfModal from '@/components/BatchPdfModal';
 
 interface ProjectInfo {
   id: string;
@@ -89,6 +91,8 @@ export default function RecipientsManagementPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [previewCertRecipient, setPreviewCertRecipient] = useState<RecipientItem | null>(null);
   const [previewVersion, setPreviewVersion] = useState<number>(0);
+  const [clearingAll, setClearingAll] = useState(false);
+  const [showBatchPdfModal, setShowBatchPdfModal] = useState(false);
 
   const openPreviewModal = useCallback((recip: RecipientItem) => {
     setPreviewVersion(Date.now());
@@ -506,6 +510,39 @@ export default function RecipientsManagementPage() {
       }
     } catch (e) {
       alert('เกิดข้อผิดพลาด');
+    }
+  };
+
+  // Clear all Excel recipients in this project
+  const handleClearAllRecipients = async () => {
+    if (
+      !confirm(
+        `ยืนยันการลบข้อมูลรายชื่อทั้งหมดในโครงการ "${project?.title}" (${totalCount} คน) หรือไม่?\nการกระทำนี้ไม่สามารถกู้คืนได้`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setClearingAll(true);
+      setErrorMessage(null);
+      const res = await fetch(`/api/recipients?projectId=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (data.success) {
+        setImportSuccessMsg(data.message || 'ลบรายชื่อทั้งหมดในโครงการเรียบร้อยแล้ว');
+        setCurrentPage(1);
+        setSearch('');
+        setDebouncedSearch('');
+        loadRecipients();
+      } else {
+        setErrorMessage(data.error || 'ไม่สามารถลบรายชื่อทั้งหมดได้');
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || 'เกิดข้อผิดพลาดในการลบรายชื่อทั้งหมด');
+    } finally {
+      setClearingAll(false);
     }
   };
 
@@ -1378,7 +1415,7 @@ export default function RecipientsManagementPage() {
             </h2>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+          <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
             {recipients.length > 0 && (
               <button
                 type="button"
@@ -1387,7 +1424,32 @@ export default function RecipientsManagementPage() {
                 title="ดูตัวอย่างเกียรติบัตรจริงพร้อมรูปภาพและโลโก้ที่บันทึกไว้"
               >
                 <Eye className="w-4 h-4 text-white" />
-                <span>👁️ ดูตัวอย่างเกียรติบัตรจริง (พร้อมรูป/โลโก้)</span>
+                <span>👁️ ดูตัวอย่างเกียรติบัตรจริง</span>
+              </button>
+            )}
+
+            {totalCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowBatchPdfModal(true)}
+                className="px-4 py-2 rounded-xl bg-white hover:bg-rose-50 text-rose-700 border border-rose-200 text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs"
+                title="ดาวน์โหลด PDF แยกตามชีต / สถานศึกษา"
+              >
+                <FileDown className="w-4 h-4 text-rose-600" />
+                <span>ดาวน์โหลด PDF แยกชีต</span>
+              </button>
+            )}
+
+            {totalCount > 0 && (
+              <button
+                type="button"
+                onClick={handleClearAllRecipients}
+                disabled={clearingAll}
+                className="px-3.5 py-2 rounded-xl bg-white hover:bg-red-50 text-red-600 border border-red-200 text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs disabled:opacity-50"
+                title="ล้างข้อมูลไฟล์ Excel / รายชื่อผู้รับทั้งหมดในโครงการนี้"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>{clearingAll ? 'กำลังลบ...' : 'ล้างข้อมูล Excel'}</span>
               </button>
             )}
 
@@ -1588,6 +1650,17 @@ export default function RecipientsManagementPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Batch PDF Download Modal (Per-Sheet / Organization) */}
+      {project && (
+        <BatchPdfModal
+          projectId={project.id}
+          projectCode={project.code}
+          projectTitle={project.title}
+          isOpen={showBatchPdfModal}
+          onClose={() => setShowBatchPdfModal(false)}
+        />
       )}
     </div>
   );

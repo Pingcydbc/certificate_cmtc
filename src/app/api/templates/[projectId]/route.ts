@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { authorizeProjectAccess } from '@/lib/auth';
+import { mapTemplateElementsForCreate } from '@/lib/templateHelpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,27 +70,7 @@ export async function PUT(
           where: { templateId: template.id },
         }),
         prisma.templateElement.createMany({
-          data: elements.map((el: any) => ({
-            templateId: template.id,
-            elementType: el.elementType || 'dynamic',
-            fieldKey: el.fieldKey || 'customText',
-            defaultValue: el.defaultValue ?? null,
-            posX: Number(el.posX) || 0,
-            posY: Number(el.posY) || 0,
-            fontSize: Number(el.fontSize) || 24,
-            fontFamily: el.fontFamily || 'Sarabun',
-            fontColor: el.fontColor || '#000000',
-            textAlign: el.textAlign || 'center',
-            lineHeight: Number(el.lineHeight) || 1.4,
-            maxWidth: el.maxWidth ? Number(el.maxWidth) : null,
-            fontWeight: el.fontWeight || 'normal',
-            fontStyle: el.fontStyle || 'normal',
-            isUnderline: Boolean(el.isUnderline),
-            letterSpacing: Number(el.letterSpacing) || 0,
-            opacity: el.opacity !== undefined && el.opacity !== null ? Number(el.opacity) : 1.0,
-            width: el.width !== undefined && el.width !== null ? Number(el.width) : null,
-            height: el.height !== undefined && el.height !== null ? Number(el.height) : null,
-          })),
+          data: mapTemplateElementsForCreate(elements, { templateId: template.id }),
         }),
       ]);
     }

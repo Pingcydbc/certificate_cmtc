@@ -14,9 +14,46 @@ import {
   AlertCircle,
   Sparkles,
   ExternalLink,
-  Layers
+  Layers,
+  Copy,
+  X,
+  Loader2
 } from 'lucide-react';
 import CertificateCanvas, { CanvasElement } from '@/components/CertificateCanvas';
+
+interface CloneSourceProject {
+  id: string;
+  code: string;
+  title: string;
+  template?: {
+    id: string;
+    _count?: { elements: number };
+  } | null;
+}
+
+function normalizeElements(rawElements: any[]): CanvasElement[] {
+  return rawElements.map((el: any) => ({
+    id: el.id,
+    elementType: el.elementType,
+    fieldKey: el.fieldKey,
+    defaultValue: el.defaultValue,
+    posX: el.posX,
+    posY: el.posY,
+    fontSize: el.fontSize,
+    fontFamily: el.fontFamily,
+    fontColor: el.fontColor,
+    textAlign: el.textAlign,
+    lineHeight: el.lineHeight,
+    maxWidth: el.maxWidth,
+    fontWeight: el.fontWeight || 'normal',
+    fontStyle: el.fontStyle || 'normal',
+    isUnderline: Boolean(el.isUnderline),
+    letterSpacing: el.letterSpacing || 0,
+    opacity: el.opacity !== undefined && el.opacity !== null ? el.opacity : 1.0,
+    width: el.width,
+    height: el.height,
+  }));
+}
 
 interface ProjectData {
   id: string;
@@ -55,6 +92,14 @@ export default function CertificateEditorPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
+
+  // Clone template modal state
+  const [showCloneModal, setShowCloneModal] = useState(false);
+  const [cloneSources, setCloneSources] = useState<CloneSourceProject[]>([]);
+  const [loadingCloneSources, setLoadingCloneSources] = useState(false);
+  const [selectedCloneSourceId, setSelectedCloneSourceId] = useState('');
+  const [cloneMode, setCloneMode] = useState<'full' | 'elements_only'>('full');
+  const [cloning, setCloning] = useState(false);
 
   const saveTemplate = useCallback(
     async (currentElements: CanvasElement[], currentBgImage: string) => {
@@ -148,29 +193,7 @@ export default function CertificateEditorPage() {
           if (p.template) {
             setBgImage(p.template.backgroundImage || '/uploads/NSDV01.jpg');
             if (p.template.elements && p.template.elements.length > 0) {
-              setElements(
-                p.template.elements.map((el: any) => ({
-                  id: el.id,
-                  elementType: el.elementType,
-                  fieldKey: el.fieldKey,
-                  defaultValue: el.defaultValue,
-                  posX: el.posX,
-                  posY: el.posY,
-                  fontSize: el.fontSize,
-                  fontFamily: el.fontFamily,
-                  fontColor: el.fontColor,
-                  textAlign: el.textAlign,
-                  lineHeight: el.lineHeight,
-                  maxWidth: el.maxWidth,
-                  fontWeight: el.fontWeight || 'normal',
-                  fontStyle: el.fontStyle || 'normal',
-                  isUnderline: Boolean(el.isUnderline),
-                  letterSpacing: el.letterSpacing || 0,
-                  opacity: el.opacity !== undefined && el.opacity !== null ? el.opacity : 1.0,
-                  width: el.width,
-                  height: el.height,
-                }))
-              );
+              setElements(normalizeElements(p.template.elements));
             }
           }
         } else {
@@ -218,6 +241,75 @@ export default function CertificateEditorPage() {
 
   const handleSave = () => {
     saveTemplate(elements, bgImage);
+  };
+
+  const openCloneModal = async () => {
+    setShowCloneModal(true);
+    setSaveError(null);
+    if (cloneSources.length > 0) return;
+
+    try {
+      setLoadingCloneSources(true);
+      const res = await fetch('/api/projects?scope=manage&limit=100&forTemplateClone=true');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.projects)) {
+        const filtered = data.projects.filter((p: CloneSourceProject) => p.id !== id);
+        setCloneSources(filtered);
+        if (filtered.length > 0) {
+          setSelectedCloneSourceId(filtered[0].id);
+        }
+      }
+    } catch {
+      setSaveError('ไม่สามารถโหลดรายการแม่แบบโครงการอื่นได้');
+    } finally {
+      setLoadingCloneSources(false);
+    }
+  };
+
+  const handleConfirmClone = async () => {
+    if (!selectedCloneSourceId) return;
+    if (
+      isDirty &&
+      !window.confirm('คุณมีการแก้ไขที่ยังไม่ได้บันทึก การคัดลอกแม่แบบจะเขียนทับการจัดวางปัจจุบัน ยืนยันหรือไม่?')
+    ) {
+      return;
+    }
+
+    try {
+      setCloning(true);
+      setSaveError(null);
+      const res = await fetch(`/api/templates/${id}/clone`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceProjectId: selectedCloneSourceId,
+          mode: cloneMode,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.template) {
+        if (cloneMode === 'full' && data.template.backgroundImage) {
+          setBgImage(data.template.backgroundImage);
+        }
+        setElements(normalizeElements(data.template.elements || []));
+        setIsDirty(false);
+        const nowStr = new Date().toLocaleTimeString('th-TH', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        });
+        setLastSavedTime(nowStr);
+        setSavedSuccess(true);
+        setTimeout(() => setSavedSuccess(false), 3000);
+        setShowCloneModal(false);
+      } else {
+        setSaveError(data.error || 'คัดลอกแม่แบบไม่สำเร็จ');
+      }
+    } catch (err: any) {
+      setSaveError(err.message || 'เกิดข้อผิดพลาดในการคัดลอกแม่แบบ');
+    } finally {
+      setCloning(false);
+    }
   };
 
   const navigateWithConfirm = (href: string) => {
@@ -309,6 +401,16 @@ export default function CertificateEditorPage() {
               </span>
             )
           )}
+
+          <button
+            type="button"
+            onClick={openCloneModal}
+            className="px-3.5 py-2 rounded-xl bg-white hover:bg-red-50 text-cmtc-800 border border-red-200 text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs"
+            title="คัดลอกแม่แบบหรือตำแหน่งการวางตัวหนังสือจากโครงการอื่น"
+          >
+            <Copy className="w-4 h-4 text-cmtc-800" />
+            คัดลอกแม่แบบอื่น
+          </button>
 
           <button
             type="button"
@@ -406,6 +508,119 @@ export default function CertificateEditorPage() {
           }}
         />
       </div>
+
+      {/* Clone Template Modal */}
+      {showCloneModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-red-50 border border-red-100 flex items-center justify-center text-cmtc-800">
+                  <Copy className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm sm:text-base font-bold text-slate-900">
+                    คัดลอกแม่แบบจากโครงการอื่น
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    นำตำแหน่งข้อความ โลโก้ และ QR Code จากโครงการเดิมมาใช้งานต่อทันที
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCloneModal(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {loadingCloneSources ? (
+                <div className="py-8 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin text-cmtc-800" />
+                  <span>กำลังโหลดรายการโครงการ...</span>
+                </div>
+              ) : cloneSources.length === 0 ? (
+                <div className="py-6 text-center text-xs text-slate-500 bg-slate-50 rounded-2xl border border-slate-200">
+                  ยังไม่มีโครงการอื่นที่สามารถคัดลอกได้
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700 block">
+                      เลือกโครงการต้นฉบับ
+                    </label>
+                    <select
+                      value={selectedCloneSourceId}
+                      onChange={(e) => setSelectedCloneSourceId(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:bg-white focus:ring-2 focus:ring-cmtc-700 focus:outline-none"
+                    >
+                      {cloneSources.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          [{p.code}] {p.title} ({p.template?._count?.elements ?? 0} องค์ประกอบ)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-700 block">
+                      เลือกรูปแบบการคัดลอก
+                    </label>
+                    <label className="flex items-start gap-2.5 p-3 rounded-xl border border-slate-200 hover:border-red-200 cursor-pointer text-xs">
+                      <input
+                        type="radio"
+                        name="editorCloneMode"
+                        checked={cloneMode === 'full'}
+                        onChange={() => setCloneMode('full')}
+                        className="mt-0.5 accent-cmtc-800"
+                      />
+                      <div>
+                        <p className="font-bold text-slate-900">คัดลอกทั้งหมด (ภาพพื้นหลัง + การจัดวาง)</p>
+                        <p className="text-[11px] text-slate-500">ใช้ภาพพื้นหลัง ข้อความ โลโก้ และตำแหน่งจากต้นฉบับทั้งหมด</p>
+                      </div>
+                    </label>
+                    <label className="flex items-start gap-2.5 p-3 rounded-xl border border-slate-200 hover:border-red-200 cursor-pointer text-xs">
+                      <input
+                        type="radio"
+                        name="editorCloneMode"
+                        checked={cloneMode === 'elements_only'}
+                        onChange={() => setCloneMode('elements_only')}
+                        className="mt-0.5 accent-cmtc-800"
+                      />
+                      <div>
+                        <p className="font-bold text-slate-900">คัดลอกเฉพาะการจัดวาง (เก็บภาพพื้นหลังเดิมไว้)</p>
+                        <p className="text-[11px] text-slate-500">นำเฉพาะข้อความ โลโก้ และตำแหน่งมาวางบนภาพพื้นหลังปัจจุบันของโครงการนี้</p>
+                      </div>
+                    </label>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowCloneModal(false)}
+                className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 text-xs font-semibold"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                disabled={cloning || !selectedCloneSourceId || cloneSources.length === 0}
+                onClick={handleConfirmClone}
+                className="px-5 py-2 rounded-xl bg-cmtc-800 hover:bg-cmtc-900 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+              >
+                {cloning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{cloning ? 'กำลังคัดลอก...' : 'ยืนยันคัดลอกแม่แบบ'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
