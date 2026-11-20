@@ -2,6 +2,7 @@
 
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import QRCode from 'qrcode';
+import { resolveCertificateElementText } from '@/lib/templateHelpers';
 import {
   Move,
   Type,
@@ -87,12 +88,16 @@ interface CertificateCanvasProps {
   width?: number;
   height?: number;
   sampleData?: {
+    nationalId?: string;
     certNumber?: string;
     fullName?: string;
     organization?: string;
     note?: string;
     eventDate?: string;
+    trainingDate?: string;
     location?: string;
+    trainingLocation?: string;
+    signedDate?: string;
     projectTitle?: string;
   };
 }
@@ -563,36 +568,36 @@ export default function CertificateCanvas({
         if (el.elementType === 'dynamic') {
           if (el.fieldKey === 'certNumber') return '{certNumber}';
           if (el.fieldKey === 'fullName') return '{fullName}';
+          if (el.fieldKey === 'nationalId') return '{nationalId}';
           if (el.fieldKey === 'organization') return '{organization}';
           if (el.fieldKey === 'note') return '{note}';
-          if (el.fieldKey === 'eventDate') return '{eventDate}';
+          if (el.fieldKey === 'eventDate' || el.fieldKey === 'trainingDate') return '{eventDate}';
+          if (el.fieldKey === 'location' || el.fieldKey === 'trainingLocation') return '{location}';
+          if (el.fieldKey === 'signedDate') return '{signedDate}';
           return el.defaultValue || '{customText}';
         }
         return el.defaultValue || 'ข้อความ';
       }
 
-      // Preview mode
-      let text = '';
-      if (el.elementType === 'dynamic') {
-        if (el.fieldKey === 'certNumber') text = sampleData.certNumber || 'CERT-2569-ศขม.0001';
-        else if (el.fieldKey === 'fullName') text = sampleData.fullName || 'นายสุรศักดิ์ ยะกัน';
-        else if (el.fieldKey === 'organization') text = sampleData.organization || 'ชื่อหน่วยงาน / สถานศึกษา';
-        else if (el.fieldKey === 'note') text = sampleData.note || 'หมายเหตุ';
-        else if (el.fieldKey === 'eventDate') text = sampleData.eventDate || '12-14 พฤษภาคม 2569';
-        else if (el.fieldKey === 'location') text = sampleData.location || 'สถานที่จัดงาน';
-        else text = el.defaultValue || '';
-      } else {
-        text = el.defaultValue || '';
-      }
-
-      return text
-        .replace(/{certNumber}/g, sampleData.certNumber || '')
-        .replace(/{fullName}/g, sampleData.fullName || '')
-        .replace(/{organization}/g, sampleData.organization || '')
-        .replace(/{note}/g, sampleData.note || '')
-        .replace(/{eventDate}/g, sampleData.eventDate || '')
-        .replace(/{location}/g, sampleData.location || '')
-        .replace(/{projectTitle}/g, sampleData.projectTitle || '');
+      // Preview mode (shared resolver matching server & batch PDF renderers)
+      return resolveCertificateElementText(
+        el,
+        {
+          nationalId: sampleData.nationalId || '1509900012345',
+          certNumber: sampleData.certNumber || 'CERT-2569-ศขม.0001',
+          fullName: sampleData.fullName || 'นายสุรศักดิ์ ยะกัน',
+          organization: sampleData.organization || 'ชื่อหน่วยงาน / สถานศึกษา',
+          note: sampleData.note || 'หมายเหตุ',
+          trainingLocation: sampleData.trainingLocation || sampleData.location || 'สถานที่จัดอบรม',
+          trainingDate: sampleData.trainingDate || sampleData.eventDate || '12-14 พฤษภาคม 2569',
+          signedDate: sampleData.signedDate || '15 พฤษภาคม 2569',
+        },
+        {
+          title: sampleData.projectTitle || '',
+          eventDate: sampleData.eventDate || '12-14 พฤษภาคม 2569',
+          location: sampleData.location || 'สถานที่จัดอบรม',
+        }
+      );
     },
     [isPreviewMode, sampleData]
   );
@@ -1658,6 +1663,74 @@ export default function CertificateCanvas({
             isLocked: false,
           };
           break;
+        case 'location':
+          newEl = {
+            id: newId,
+            elementType: 'dynamic',
+            fieldKey: 'location',
+            defaultValue: 'ณ {location}',
+            posX: Math.round(width / 2),
+            posY: Math.round(height * 0.68),
+            fontSize: 16,
+            fontFamily: 'Sarabun',
+            fontColor: '#475569',
+            textAlign: 'center',
+            lineHeight: 1.4,
+            fontWeight: 'normal',
+            isLocked: false,
+          };
+          break;
+        case 'signedDate':
+          newEl = {
+            id: newId,
+            elementType: 'dynamic',
+            fieldKey: 'signedDate',
+            defaultValue: 'ให้ไว้ ณ วันที่ {signedDate}',
+            posX: Math.round(width / 2),
+            posY: Math.round(height * 0.72),
+            fontSize: 16,
+            fontFamily: 'Sarabun',
+            fontColor: '#475569',
+            textAlign: 'center',
+            lineHeight: 1.4,
+            fontWeight: 'normal',
+            isLocked: false,
+          };
+          break;
+        case 'note':
+          newEl = {
+            id: newId,
+            elementType: 'dynamic',
+            fieldKey: 'note',
+            defaultValue: '{note}',
+            posX: Math.round(width / 2),
+            posY: Math.round(height * 0.6),
+            fontSize: 16,
+            fontFamily: 'Sarabun',
+            fontColor: '#334155',
+            textAlign: 'center',
+            lineHeight: 1.4,
+            fontWeight: 'normal',
+            isLocked: false,
+          };
+          break;
+        case 'nationalId':
+          newEl = {
+            id: newId,
+            elementType: 'dynamic',
+            fieldKey: 'nationalId',
+            defaultValue: 'เลขประจำตัวประชาชน {nationalId}',
+            posX: Math.round(width / 2),
+            posY: Math.round(height * 0.46),
+            fontSize: 15,
+            fontFamily: 'Sarabun',
+            fontColor: '#475569',
+            textAlign: 'center',
+            lineHeight: 1.4,
+            fontWeight: 'normal',
+            isLocked: false,
+          };
+          break;
         case 'signature':
           newEl = {
             id: newId,
@@ -2307,9 +2380,13 @@ export default function CertificateCanvas({
                         >
                           <option value="customText">ข้อความทั่วไป (Static Text)</option>
                           <option value="fullName">ชื่อ-นามสกุล ผู้รับ ({'{fullName}'})</option>
+                          <option value="nationalId">เลขประจำตัวประชาชน 13 หลัก ({'{nationalId}'})</option>
                           <option value="certNumber">เลขทะเบียนเกียรติบัตร ({'{certNumber}'})</option>
                           <option value="organization">สถานศึกษา / สังกัด ({'{organization}'})</option>
-                          <option value="eventDate">วันที่จัดงาน ({'{eventDate}'})</option>
+                          <option value="location">สถานที่จัดอบรม ({'{location}'})</option>
+                          <option value="eventDate">วันที่จัดอบรม ({'{eventDate}'})</option>
+                          <option value="signedDate">วันที่ลงนาม ({'{signedDate}'})</option>
+                          <option value="note">หมายเหตุ / ข้อมูลเพิ่มเติม ({'{note}'})</option>
                         </select>
                       </div>
 
@@ -2629,9 +2706,61 @@ export default function CertificateCanvas({
                   >
                     <div>
                       <p className="text-xs font-bold text-slate-800 group-hover:text-cmtc-800">
-                        📅 วันที่จัดงาน / ให้ไว้ ณ วันที่
+                        📅 วันที่จัดอบรม
                       </p>
                       <p className="text-[11px] text-slate-500 font-mono">ฟิลด์ &#123;eventDate&#125;</p>
+                    </div>
+                    <Plus className="w-3.5 h-3.5 text-slate-400 group-hover:text-cmtc-800" />
+                  </button>
+
+                  <button
+                    onClick={() => handleAddQuickBlock('location')}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 hover:border-red-300 hover:bg-red-50/50 text-left transition-all flex items-center justify-between group"
+                  >
+                    <div>
+                      <p className="text-xs font-bold text-slate-800 group-hover:text-cmtc-800">
+                        📍 สถานที่จัดอบรม
+                      </p>
+                      <p className="text-[11px] text-slate-500 font-mono">ฟิลด์ &#123;location&#125;</p>
+                    </div>
+                    <Plus className="w-3.5 h-3.5 text-slate-400 group-hover:text-cmtc-800" />
+                  </button>
+
+                  <button
+                    onClick={() => handleAddQuickBlock('signedDate')}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 hover:border-red-300 hover:bg-red-50/50 text-left transition-all flex items-center justify-between group"
+                  >
+                    <div>
+                      <p className="text-xs font-bold text-slate-800 group-hover:text-cmtc-800">
+                        🗓️ วันที่ลงนาม
+                      </p>
+                      <p className="text-[11px] text-slate-500 font-mono">ฟิลด์ &#123;signedDate&#125;</p>
+                    </div>
+                    <Plus className="w-3.5 h-3.5 text-slate-400 group-hover:text-cmtc-800" />
+                  </button>
+
+                  <button
+                    onClick={() => handleAddQuickBlock('note')}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 hover:border-red-300 hover:bg-red-50/50 text-left transition-all flex items-center justify-between group"
+                  >
+                    <div>
+                      <p className="text-xs font-bold text-slate-800 group-hover:text-cmtc-800">
+                        📝 หมายเหตุ / ข้อมูลเพิ่มเติม
+                      </p>
+                      <p className="text-[11px] text-slate-500 font-mono">ฟิลด์ &#123;note&#125;</p>
+                    </div>
+                    <Plus className="w-3.5 h-3.5 text-slate-400 group-hover:text-cmtc-800" />
+                  </button>
+
+                  <button
+                    onClick={() => handleAddQuickBlock('nationalId')}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 hover:border-red-300 hover:bg-red-50/50 text-left transition-all flex items-center justify-between group"
+                  >
+                    <div>
+                      <p className="text-xs font-bold text-slate-800 group-hover:text-cmtc-800">
+                        🪪 เลขประจำตัวประชาชน 13 หลัก
+                      </p>
+                      <p className="text-[11px] text-slate-500 font-mono">ฟิลด์ &#123;nationalId&#125;</p>
                     </div>
                     <Plus className="w-3.5 h-3.5 text-slate-400 group-hover:text-cmtc-800" />
                   </button>

@@ -14,7 +14,12 @@ import {
   UserCheck,
   Users,
   Lock,
-  User
+  User,
+  KeyRound,
+  Eye,
+  EyeOff,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { fetchAuthMe, clearAuthMeCache, ClientAuthUser } from '@/lib/clientAuth';
@@ -27,6 +32,75 @@ export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [adminUser, setAdminUser] = useState<AuthUser | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
+
+  // Change own password modal state
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [showCurrPw, setShowCurrPw] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwError, setPwError] = useState<string | null>(null);
+  const [pwSuccess, setPwSuccess] = useState<string | null>(null);
+
+  const openChangePasswordModal = () => {
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmNewPassword('');
+    setPwError(null);
+    setPwSuccess(null);
+    setShowPasswordModal(true);
+    setMobileMenuOpen(false);
+  };
+
+  const handleChangeOwnPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPwError(null);
+    setPwSuccess(null);
+
+    if (!currentPassword.trim() || !newPassword.trim()) {
+      setPwError('กรุณากรอกรหัสผ่านเดิมและรหัสผ่านใหม่');
+      return;
+    }
+    if (newPassword.trim().length < 4) {
+      setPwError('รหัสผ่านใหม่ต้องมีความยาวอย่างน้อย 4 ตัวอักษร');
+      return;
+    }
+    if (newPassword.trim() !== confirmNewPassword.trim()) {
+      setPwError('รหัสผ่านใหม่และยืนยันรหัสผ่านไม่ตรงกัน');
+      return;
+    }
+
+    try {
+      setPwSaving(true);
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentPassword: currentPassword.trim(),
+          newPassword: newPassword.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPwSuccess(data.message || 'เปลี่ยนรหัสผ่านเรียบร้อยแล้ว');
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmNewPassword('');
+        setTimeout(() => {
+          setShowPasswordModal(false);
+          setPwSuccess(null);
+        }, 1200);
+      } else {
+        setPwError(data.error || 'เปลี่ยนรหัสผ่านไม่สำเร็จ');
+      }
+    } catch (err: any) {
+      setPwError(err.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อ');
+    } finally {
+      setPwSaving(false);
+    }
+  };
 
   // Check auth status on initial load or admin route transitions
   useEffect(() => {
@@ -161,6 +235,15 @@ export default function Navbar() {
                     )}
                   </span>
                   <button
+                    type="button"
+                    onClick={openChangePasswordModal}
+                    title="เปลี่ยนรหัสผ่านของฉัน"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-cmtc-800 hover:bg-red-50 border border-transparent hover:border-red-200 transition-all"
+                  >
+                    <KeyRound className="w-3.5 h-3.5" />
+                    <span className="hidden lg:inline">เปลี่ยนรหัสผ่าน</span>
+                  </button>
+                  <button
                     onClick={handleLogout}
                     disabled={loggingOut}
                     title="ออกจากระบบ"
@@ -239,7 +322,15 @@ export default function Navbar() {
                 );
               })}
 
-              <div className="pt-2">
+              <div className="pt-2 space-y-2">
+                <button
+                  type="button"
+                  onClick={openChangePasswordModal}
+                  className="flex items-center justify-center gap-2 w-full py-2.5 text-sm font-semibold rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700"
+                >
+                  <KeyRound className="w-4 h-4" />
+                  เปลี่ยนรหัสผ่านของฉัน
+                </button>
                 <Link
                   href="/admin/project/new"
                   onClick={() => setMobileMenuOpen(false)}
@@ -272,6 +363,129 @@ export default function Navbar() {
               </Link>
             </>
           )}
+        </div>
+      )}
+      {/* Change Own Password Modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-red-50 text-red-700 border border-red-100">
+                  <KeyRound className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-sm sm:text-base">
+                    เปลี่ยนรหัสผ่าน ({adminUser?.username})
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    ตั้งรหัสผ่านใหม่สำหรับเข้าสู่ระบบบัญชีของคุณ
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPasswordModal(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleChangeOwnPassword} className="p-5 space-y-4">
+              {pwError && (
+                <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{pwError}</span>
+                </div>
+              )}
+              {pwSuccess && (
+                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs flex items-center gap-2 font-semibold">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>{pwSuccess}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  รหัสผ่านเดิม <span className="text-red-600">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type={showCurrPw ? 'text' : 'password'}
+                    required
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="กรอกรหัสผ่านปัจจุบัน"
+                    className="w-full px-3.5 py-2.5 pr-10 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-red-600 bg-slate-50 focus:bg-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrPw(!showCurrPw)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    {showCurrPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  รหัสผ่านใหม่ <span className="text-red-600">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type={showNewPw ? 'text' : 'password'}
+                    required
+                    minLength={4}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="อย่างน้อย 4 ตัวอักษร"
+                    className="w-full px-3.5 py-2.5 pr-10 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-red-600 bg-slate-50 focus:bg-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPw(!showNewPw)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    {showNewPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  ยืนยันรหัสผ่านใหม่ <span className="text-red-600">*</span>
+                </label>
+                <input
+                  type={showNewPw ? 'text' : 'password'}
+                  required
+                  minLength={4}
+                  value={confirmNewPassword}
+                  onChange={(e) => setConfirmNewPassword(e.target.value)}
+                  placeholder="พิมพ์รหัสผ่านใหม่อีกครั้ง"
+                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-red-600 bg-slate-50 focus:bg-white"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordModal(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  disabled={pwSaving}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-red-700 hover:bg-red-800 text-white shadow-xs disabled:opacity-50"
+                >
+                  {pwSaving ? 'กำลังบันทึก...' : 'บันทึกรหัสผ่านใหม่'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </header>

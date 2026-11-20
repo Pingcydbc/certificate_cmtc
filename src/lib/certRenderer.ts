@@ -3,6 +3,7 @@ import { PDFDocument } from 'pdf-lib';
 import QRCode from 'qrcode';
 import path from 'path';
 import fs from 'fs';
+import { resolveCertificateElementText } from '@/lib/templateHelpers';
 
 let fontsRegistered = false;
 
@@ -70,9 +71,13 @@ export interface RenderElement {
 
 export interface RenderRecipient {
   id?: string;
+  nationalId?: string | null;
   certNumber: string;
   fullName: string;
   organization?: string | null;
+  trainingLocation?: string | null;
+  trainingDate?: string | null;
+  signedDate?: string | null;
   note?: string | null;
   issuedDate?: Date | string;
 }
@@ -379,36 +384,7 @@ export async function renderCertificateCanvas(params: RenderCertificateParams) {
     }
 
     // 3. Text Element (Dynamic or Static)
-    let text = '';
-    if (el.elementType === 'dynamic') {
-      if (el.fieldKey === 'certNumber') {
-        text = recipient.certNumber || el.defaultValue || '';
-      } else if (el.fieldKey === 'fullName') {
-        text = recipient.fullName || el.defaultValue || '';
-      } else if (el.fieldKey === 'organization') {
-        text = recipient.organization || el.defaultValue || '';
-      } else if (el.fieldKey === 'note') {
-        text = recipient.note || el.defaultValue || '';
-      } else if (el.fieldKey === 'eventDate') {
-        text = project.eventDate || el.defaultValue || '';
-      } else if (el.fieldKey === 'location') {
-        text = project.location || el.defaultValue || '';
-      } else {
-        text = el.defaultValue || '';
-      }
-    } else {
-      text = el.defaultValue || '';
-    }
-
-    // Replace dynamic placeholders if present in static text
-    text = text
-      .replace(/{certNumber}/g, recipient.certNumber || '')
-      .replace(/{fullName}/g, recipient.fullName || '')
-      .replace(/{organization}/g, recipient.organization || '')
-      .replace(/{note}/g, recipient.note || '')
-      .replace(/{eventDate}/g, project.eventDate || '')
-      .replace(/{location}/g, project.location || '')
-      .replace(/{projectTitle}/g, project.title || '');
+    const text = resolveCertificateElementText(el, recipient, project);
 
     if (!text) {
       ctx.restore();

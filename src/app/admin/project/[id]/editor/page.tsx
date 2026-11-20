@@ -75,9 +75,14 @@ interface ProjectData {
   } | null;
   recipients?: Array<{
     id: string;
+    nationalId?: string | null;
     certNumber: string;
     fullName: string;
     organization: string | null;
+    trainingLocation?: string | null;
+    trainingDate?: string | null;
+    signedDate?: string | null;
+    note?: string | null;
   }>;
 }
 
@@ -363,9 +368,14 @@ export default function CertificateEditorPage() {
   }
 
   const sampleRecipient = project.recipients?.[0] || {
+    nationalId: '1509900012345',
     certNumber: `${project.code || 'CERT'}-ศขม.0001`,
     fullName: 'นายสมชาย ยิ่งยง',
     organization: project.location || 'ชื่อหน่วยงาน / สถานศึกษา',
+    trainingLocation: project.location || 'สถานที่จัดอบรม',
+    trainingDate: project.eventDate || '12-14 พฤษภาคม 2569',
+    signedDate: '15 พฤษภาคม 2569',
+    note: 'ตัวอย่างหมายเหตุ',
   };
 
   return (
@@ -511,11 +521,16 @@ export default function CertificateEditorPage() {
           width={990}
           height={698}
           sampleData={{
+            nationalId: sampleRecipient.nationalId || '1509900012345',
             certNumber: sampleRecipient.certNumber,
             fullName: sampleRecipient.fullName,
             organization: sampleRecipient.organization || 'วิทยาลัยเทคนิคตาก',
-            eventDate: project.eventDate || '12-14 พฤษภาคม 2569',
-            location: project.location || 'วิทยาลัยเทคนิคตาก',
+            eventDate: sampleRecipient.trainingDate || project.eventDate || '12-14 พฤษภาคม 2569',
+            trainingDate: sampleRecipient.trainingDate || project.eventDate || '12-14 พฤษภาคม 2569',
+            location: sampleRecipient.trainingLocation || project.location || 'วิทยาลัยเทคนิคตาก',
+            trainingLocation: sampleRecipient.trainingLocation || project.location || 'วิทยาลัยเทคนิคตาก',
+            signedDate: sampleRecipient.signedDate || '15 พฤษภาคม 2569',
+            note: sampleRecipient.note || 'ตัวอย่างหมายเหตุ',
             projectTitle: project.title,
           }}
         />

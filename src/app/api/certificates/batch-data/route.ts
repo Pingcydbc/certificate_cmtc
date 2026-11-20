@@ -75,9 +75,13 @@ export async function GET(request: NextRequest) {
       orderBy: { certNumber: 'asc' },
       select: {
         id: true,
+        nationalId: true,
         certNumber: true,
         fullName: true,
         organization: true,
+        trainingLocation: true,
+        trainingDate: true,
+        signedDate: true,
         note: true,
       },
     });

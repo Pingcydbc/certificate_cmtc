@@ -71,17 +71,23 @@ model TemplateElement {
 
 // 4. ข้อมูลรายชื่อผู้รับเกียรติบัตร
 model Recipient {
-  id           String   @id @default(uuid())
-  projectId    String
-  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  certNumber   String   // เช่น NSDV-2569-ผจร.0001
-  fullName     String   // เช่น นายสุรศักดิ์ ยะกัน (Trim whitespace เรียบร้อย)
-  organization String?  // เช่น วิทยาลัยเทคนิคตาก
-  note         String?  // หมายเหตุ
-  issuedDate   DateTime @default(now())
+  id               String   @id @default(uuid())
+  projectId        String
+  project          Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  nationalId       String?  // เลขประจำตัวประชาชน 13 หลัก
+  certNumber       String   // เช่น NSDV-2569-ผจร.0001
+  fullName         String   // เช่น นายสุรศักดิ์ ยะกัน (Trim whitespace เรียบร้อย)
+  organization     String?  // เช่น วิทยาลัยเทคนิคตาก
+  trainingLocation String?  // สถานที่จัดอบรม
+  trainingDate     String?  // วันที่จัดอบรม
+  signedDate       String?  // วันที่ลงนาม
+  note             String?  // หมายเหตุ
+  issuedDate       DateTime @default(now())
 
   @@index([fullName])
   @@index([certNumber])
+  @@index([nationalId])
+  @@index([projectId, nationalId])
   @@index([projectId, fullName])
   @@index([projectId, certNumber])
 }

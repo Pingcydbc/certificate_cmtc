@@ -45,13 +45,15 @@ interface ProjectOption {
 function SearchPageContent() {
   const searchParams = useSearchParams();
   const initialProjectId = searchParams.get('projectId') || '';
-  const initialQuery = searchParams.get('query') || searchParams.get('search') || '';
+  const initialQuery = searchParams.get('nationalId') || searchParams.get('query') || searchParams.get('search') || '';
 
   const [query, setQuery] = useState(initialQuery);
   const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId);
   const [projectsList, setProjectsList] = useState<ProjectOption[]>([]);
   const [recipients, setRecipients] = useState<RecipientItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
@@ -73,10 +75,31 @@ function SearchPageContent() {
   }, []);
 
   const searchCertificates = useCallback(async () => {
+    const cleanDigits = query.replace(/[-\s]/g, '').trim();
+    if (!cleanDigits) {
+      setRecipients([]);
+      setTotalItems(0);
+      setTotalPages(1);
+      setHasSearched(false);
+      setValidationError(null);
+      return;
+    }
+
+    if (!/^\d{13}$/.test(cleanDigits)) {
+      setRecipients([]);
+      setTotalItems(0);
+      setTotalPages(1);
+      setHasSearched(false);
+      setValidationError('กรุณากรอกเลขประจำตัวประชาชนให้ครบ 13 หลัก (ตัวเลขเท่านั้น)');
+      return;
+    }
+
     try {
+      setValidationError(null);
+      setHasSearched(true);
       setLoading(true);
       const params = new URLSearchParams({
-        query: query.trim(),
+        nationalId: cleanDigits,
         page: currentPage.toString(),
         limit: '15',
       });
@@ -125,7 +148,7 @@ function SearchPageContent() {
           ค้นหาและดาวน์โหลด <span className="text-gradient-red">เกียรติบัตรออนไลน์</span>
         </h1>
         <p className="text-xs sm:text-sm text-slate-500 mt-1">
-          กรอกชื่อ-นามสกุล, เลขทะเบียนเกียรติบัตร, หรือชื่อสถานศึกษา เพื่อค้นหาเกียรติบัตรของคุณ
+          กรอกเลขประจำตัวประชาชน 13 หลัก เพื่อค้นหาและดาวน์โหลดเกียรติบัตรของคุณ
         </p>
       </div>
 
@@ -134,14 +157,17 @@ function SearchPageContent() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="md:col-span-2">
             <label className="text-xs font-bold text-slate-700 mb-1.5 block">
-              คำค้นหา (ชื่อ-นามสกุล, ชื่อโครงการ, เลขทะเบียน หรือ สังกัด)
+              เลขประจำตัวประชาชน 13 หลัก
             </label>
             <SearchBar
               value={query}
               onChange={handleQueryChange}
               loading={loading}
-              placeholder="ค้นหาด้วย ชื่อ-นามสกุล หรือ ชื่อโครงการ... (เช่น นายสมชาย)"
+              placeholder="กรอกเลขประจำตัวประชาชน 13 หลัก (เช่น 1509900012345)..."
             />
+            {validationError && (
+              <p className="mt-1.5 text-xs text-red-600 font-semibold">{validationError}</p>
+            )}
           </div>
 
           <div>
@@ -196,12 +222,20 @@ function SearchPageContent() {
             </div>
           ))}
         </div>
+      ) : !hasSearched ? (
+        <div className="text-center py-16 bg-white border border-slate-200 rounded-2xl p-8 shadow-xs">
+          <Search className="w-12 h-12 text-red-600/70 mx-auto mb-3" />
+          <h3 className="text-lg font-bold text-slate-900">กรอกเลขประจำตัวประชาชน 13 หลักเพื่อค้นหา</h3>
+          <p className="text-sm text-slate-500 mt-1 max-w-md mx-auto">
+            เพื่อความเป็นส่วนตัว ระบบจะแสดงเฉพาะเกียรติบัตรที่ตรงกับเลขประจำตัวประชาชน 13 หลักของคุณเท่านั้น
+          </p>
+        </div>
       ) : recipients.length === 0 ? (
         <div className="text-center py-16 bg-white border border-slate-200 rounded-2xl p-8 shadow-xs">
           <Award className="w-12 h-12 text-slate-400 mx-auto mb-3" />
           <h3 className="text-lg font-bold text-slate-900">ไม่พบข้อมูลเกียรติบัตร</h3>
           <p className="text-sm text-slate-500 mt-1 max-w-md mx-auto">
-            กรุณาตรวจสอบการสะกดชื่อ-นามสกุล หรือลองค้นหาด้วยคำที่สั้นลง เช่น เฉพาะชื่อ หรือเฉพาะนามสกุล
+            ไม่พบเกียรติบัตรที่ตรงกับเลขประจำตัวประชาชน 13 หลักที่ระบุ กรุณาตรวจสอบตัวเลขอีกครั้ง
           </p>
         </div>
       ) : (

@@ -121,7 +121,7 @@ export async function authorizeProjectAccess(
   request: NextRequest,
   projectId: string
 ): Promise<
-  | { session: SessionPayload; project: { id: string; code: string; title: string; location: string | null; createdById: string | null }; error?: never }
+  | { session: SessionPayload; project: { id: string; code: string; title: string; location: string | null; eventDate: string | null; createdById: string | null }; error?: never }
   | { error: NextResponse; session?: never; project?: never }
 > {
   const session = getRequestSession(request);
@@ -141,6 +141,7 @@ export async function authorizeProjectAccess(
       code: true,
       title: true,
       location: true,
+      eventDate: true,
       createdById: true,
     },
   });

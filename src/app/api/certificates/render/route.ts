@@ -69,9 +69,13 @@ export async function GET(request: NextRequest) {
       },
       recipient: {
         id: recipient.id,
+        nationalId: recipient.nationalId,
         certNumber: recipient.certNumber,
         fullName: recipient.fullName,
         organization: recipient.organization,
+        trainingLocation: recipient.trainingLocation,
+        trainingDate: recipient.trainingDate,
+        signedDate: recipient.signedDate,
         note: recipient.note,
         issuedDate: recipient.issuedDate,
       },

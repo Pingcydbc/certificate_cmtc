@@ -48,10 +48,22 @@ export async function POST(request: NextRequest) {
     const firstNameColIdx = parseInt((formData.get('firstNameColIdx') as string) || '-1', 10);
     const lastNameColIdx = parseInt((formData.get('lastNameColIdx') as string) || '-1', 10);
 
+    // National ID (13 digits)
+    const nationalIdColIdx = parseInt((formData.get('nationalIdColIdx') as string) || '-1', 10);
+
     // Organization options
     const orgMode = (formData.get('orgMode') as string) || 'column'; // 'column' | 'fixed' | 'sheetName' | 'none'
     const orgColIdx = parseInt((formData.get('orgColIdx') as string) || '-1', 10);
     const orgFixedValue = (formData.get('orgFixedValue') as string) || '';
+
+    // Training Location, Training Date, Signed Date options
+    const trainingLocationMode = (formData.get('trainingLocationMode') as string) || 'column'; // 'column' | 'project' | 'none'
+    const trainingLocationColIdx = parseInt((formData.get('trainingLocationColIdx') as string) || '-1', 10);
+    const trainingDateMode = (formData.get('trainingDateMode') as string) || 'column'; // 'column' | 'project' | 'none'
+    const trainingDateColIdx = parseInt((formData.get('trainingDateColIdx') as string) || '-1', 10);
+    const signedDateMode = (formData.get('signedDateMode') as string) || 'column'; // 'column' | 'fixed' | 'none'
+    const signedDateColIdx = parseInt((formData.get('signedDateColIdx') as string) || '-1', 10);
+    const signedDateFixedValue = (formData.get('signedDateFixedValue') as string) || '';
 
     // Note options
     const noteMode = (formData.get('noteMode') as string) || 'column'; // 'column' | 'includeAllExtra' | 'none'
@@ -178,6 +190,39 @@ export async function POST(request: NextRequest) {
           organization = project.location;
         }
 
+        // 3.5 Resolve National ID (13 digits, strip dashes/spaces)
+        let nationalId: string | null = null;
+        if (nationalIdColIdx >= 0 && r[nationalIdColIdx] !== undefined && r[nationalIdColIdx] !== null) {
+          const cleanedId = String(r[nationalIdColIdx]).replace(/[-\s]/g, '').trim();
+          if (cleanedId) {
+            nationalId = cleanedId;
+          }
+        }
+
+        // 3.6 Resolve Training Location, Training Date, Signed Date
+        let trainingLocation: string | null = null;
+        if (trainingLocationMode === 'column' && trainingLocationColIdx >= 0 && r[trainingLocationColIdx]) {
+          trainingLocation = String(r[trainingLocationColIdx]).trim() || null;
+        }
+        if (!trainingLocation && trainingLocationMode !== 'none' && project.location) {
+          trainingLocation = project.location;
+        }
+
+        let trainingDate: string | null = null;
+        if (trainingDateMode === 'column' && trainingDateColIdx >= 0 && r[trainingDateColIdx]) {
+          trainingDate = String(r[trainingDateColIdx]).trim() || null;
+        }
+        if (!trainingDate && trainingDateMode !== 'none' && project.eventDate) {
+          trainingDate = project.eventDate;
+        }
+
+        let signedDate: string | null = null;
+        if (signedDateMode === 'column' && signedDateColIdx >= 0 && r[signedDateColIdx]) {
+          signedDate = String(r[signedDateColIdx]).trim() || null;
+        } else if (signedDateMode === 'fixed' && signedDateFixedValue.trim()) {
+          signedDate = signedDateFixedValue.trim();
+        }
+
         // 4. Resolve Note
         let note: string | null = null;
         if (noteMode === 'column' && noteColIdx >= 0 && r[noteColIdx]) {
@@ -188,12 +233,16 @@ export async function POST(request: NextRequest) {
             extraParts.push(String(r[noteColIdx]).trim());
           }
           const mappedIndices = new Set([
+            nationalIdColIdx,
             certColIdx,
             nameColIdx,
             prefixColIdx,
             firstNameColIdx,
             lastNameColIdx,
             orgColIdx,
+            trainingLocationColIdx,
+            trainingDateColIdx,
+            signedDateColIdx,
             noteColIdx,
           ]);
 
@@ -220,9 +269,13 @@ export async function POST(request: NextRequest) {
 
         recipientsToCreate.push({
           projectId,
+          nationalId,
           certNumber,
           fullName,
           organization,
+          trainingLocation,
+          trainingDate,
+          signedDate,
           note,
         });
         sheetRecipientsCount++;

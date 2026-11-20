@@ -34,6 +34,7 @@ interface CertificateResult {
 export default function HomePage() {
   const [searchInput, setSearchInput] = useState('');
   const [currentQuery, setCurrentQuery] = useState('');
+  const [validationError, setValidationError] = useState<string | null>(null);
   const [results, setResults] = useState<CertificateResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
@@ -41,25 +42,34 @@ export default function HomePage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalResults, setTotalResults] = useState(0);
 
-  // Perform search across all projects
+  // Perform search by exact 13-digit National ID across active projects
   const performSearch = async (query: string, page = 1) => {
-    const cleanQuery = query.trim();
-    if (!cleanQuery) {
+    const cleanDigits = query.replace(/[-\s]/g, '').trim();
+    if (!cleanDigits) {
       setHasSearched(false);
+      setValidationError(null);
       setResults([]);
       setCurrentQuery('');
       setLoading(false);
       return;
     }
 
+    if (!/^\d{13}$/.test(cleanDigits)) {
+      setValidationError('กรุณากรอกเลขประจำตัวประชาชนให้ครบ 13 หลัก (ตัวเลขเท่านั้น)');
+      setHasSearched(false);
+      setResults([]);
+      return;
+    }
+
     try {
+      setValidationError(null);
       setLoading(true);
       setHasSearched(true);
-      setCurrentQuery(query);
+      setCurrentQuery(cleanDigits);
       setCurrentPage(page);
 
       const params = new URLSearchParams({
-        query: cleanQuery,
+        nationalId: cleanDigits,
         page: page.toString(),
         limit: '12',
       });
@@ -85,13 +95,19 @@ export default function HomePage() {
   };
 
   const handleQueryChange = (val: string) => {
+    const cleanDigits = val.replace(/[-\s]/g, '').trim();
     setSearchInput(val);
-    if (!val.trim()) {
+    if (!cleanDigits) {
       setHasSearched(false);
+      setValidationError(null);
       setResults([]);
       setCurrentQuery('');
-    } else {
-      performSearch(val, 1);
+      return;
+    }
+    if (/^\d{13}$/.test(cleanDigits)) {
+      performSearch(cleanDigits, 1);
+    } else if (/^\d+$/.test(cleanDigits) && cleanDigits.length < 13) {
+      setValidationError(null);
     }
   };
 
@@ -131,7 +147,7 @@ export default function HomePage() {
           </h1>
 
           <p className="mt-4 text-base sm:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
-            พิมพ์ชื่อ-นามสกุลของคุณ ระบบจะค้นหาและรวบรวมใบเกียรติบัตรที่คุณได้รับจากทุกโครงการจัดอบรมและกิจกรรมขึ้นมาให้ดาวน์โหลดได้ทันที
+            กรอกเลขประจำตัวประชาชน 13 หลักของคุณ ระบบจะค้นหาและรวบรวมใบเกียรติบัตรที่คุณได้รับจากทุกโครงการขึ้นมาให้ดาวน์โหลดได้ทันที
           </p>
 
           {/* Direct Search Box Form */}
@@ -144,7 +160,7 @@ export default function HomePage() {
                   onSearch={(val) => {
                     if (val.trim()) performSearch(val, 1);
                   }}
-                  placeholder="พิมพ์ชื่อ-นามสกุล หรือเลขที่เกียรติบัตร..."
+                  placeholder="กรอกเลขประจำตัวประชาชน 13 หลัก (เช่น 1509900012345)..."
                   className="w-full"
                   loading={loading}
                 />
@@ -168,9 +184,16 @@ export default function HomePage() {
               </button>
             </form>
 
+            {validationError && (
+              <p className="mt-2.5 text-xs font-semibold text-red-600 flex items-center justify-center gap-1.5">
+                <AlertCircle className="w-3.5 h-3.5" />
+                <span>{validationError}</span>
+              </p>
+            )}
+
             <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs text-slate-500">
               <span>💡 คำแนะนำ:</span>
-              <span className="text-slate-600">ค้นหาด้วย <strong>ชื่อ-นามสกุล</strong> เช่น <em>&quot;สมชาย&quot;</em> หรือ <strong>เลขที่เกียรติบัตร</strong></span>
+              <span className="text-slate-600">กรอก <strong>เลขประจำตัวประชาชน 13 หลัก</strong> (มีหรือไม่มีขีดก็ได้ ระบบจะจัดรูปแบบให้อัตโนมัติ)</span>
             </div>
           </div>
         </div>
@@ -214,10 +237,10 @@ export default function HomePage() {
                 <AlertCircle className="w-7 h-7" />
               </div>
               <h3 className="text-lg font-bold text-slate-900">
-                ไม่พบเกียรติบัตรที่ตรงกับ &quot;{currentQuery}&quot;
+                ไม่พบเกียรติบัตรสำหรับเลข 13 หลัก &quot;{currentQuery}&quot;
               </h3>
               <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
-                กรุณาตรวจสอบการสะกดชื่อ-นามสกุล หรือลองค้นหาด้วยเฉพาะชื่อจริง หรือเลขที่เกียรติบัตร (ไม่ต้องพิมพ์คำนำหน้า เช่น นาย/นาง/นางสาว)
+                กรุณาตรวจสอบเลขประจำตัวประชาชน 13 หลักให้ถูกต้อง หรือติดต่อผู้จัดโครงการหากยังไม่พบข้อมูลในระบบ
               </p>
               <div className="pt-2">
                 <button

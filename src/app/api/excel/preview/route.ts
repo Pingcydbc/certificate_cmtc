@@ -48,9 +48,13 @@ export async function POST(request: NextRequest) {
     let bestHeaderRowIdx = -1;
     let bestScore = 0;
     let bestCols = {
+      nationalIdColIdx: -1,
       certColIdx: -1,
       nameColIdx: -1,
       orgColIdx: -1,
+      trainingLocationColIdx: -1,
+      trainingDateColIdx: -1,
+      signedDateColIdx: -1,
       noteColIdx: -1,
       prefixColIdx: -1,
       firstNameColIdx: -1,
@@ -63,9 +67,13 @@ export async function POST(request: NextRequest) {
       if (nonBlankCount < 2) continue;
 
       let score = 0;
+      let tempNationalId = -1;
       let tempCert = -1;
       let tempName = -1;
       let tempOrg = -1;
+      let tempTrainingLoc = -1;
+      let tempTrainingDate = -1;
+      let tempSignedDate = -1;
       let tempNote = -1;
       let tempPref = -1;
       let tempFirst = -1;
@@ -73,10 +81,25 @@ export async function POST(request: NextRequest) {
 
       for (let j = 0; j < row.length; j++) {
         const val = String(row[j] || '').trim();
+        const lower = val.toLowerCase();
+
+        if (
+          val.includes('13 หลัก') ||
+          val.includes('13หลัก') ||
+          val.includes('บัตรประชาชน') ||
+          val.includes('เลขประจำตัว') ||
+          val.includes('เลขบัตร') ||
+          lower.includes('nationalid') ||
+          lower.includes('citizen') ||
+          lower.includes('idcard')
+        ) {
+          tempNationalId = j;
+          score += 10;
+        }
         if (
           val.includes('ทะเบียน') ||
           val.includes('รหัส') ||
-          val.includes('certNumber') ||
+          lower.includes('certnumber') ||
           val.includes('เลขที่') ||
           val.includes('เลขเกียรติบัตร')
         ) {
@@ -87,20 +110,20 @@ export async function POST(request: NextRequest) {
           val.includes('ชื่อ-สกุล') ||
           val.includes('ชื่อ-นามสกุล') ||
           val.includes('ชื่อ - นามสกุล') ||
-          val.includes('fullName') ||
+          lower.includes('fullname') ||
           val.includes('ผู้รับ')
         ) {
           tempName = j;
           score += 15;
-        } else if (val === 'ชื่อ' || val.includes('ชื่อตัว') || val.includes('firstName')) {
+        } else if (val === 'ชื่อ' || val.includes('ชื่อตัว') || lower.includes('firstname')) {
           tempFirst = j;
           score += 8;
         }
-        if (val.includes('คำนำหน้า') || val.includes('ยศ') || val.includes('prefix')) {
+        if (val.includes('คำนำหน้า') || val.includes('ยศ') || lower.includes('prefix')) {
           tempPref = j;
           score += 5;
         }
-        if (val.includes('นามสกุล') || val.includes('สกุล') || val.includes('lastName')) {
+        if (val.includes('นามสกุล') || val.includes('สกุล') || lower.includes('lastname')) {
           tempLast = j;
           score += 8;
         }
@@ -110,12 +133,41 @@ export async function POST(request: NextRequest) {
           val.includes('โรงเรียน') ||
           val.includes('วิทยาลัย') ||
           val.includes('หน่วยงาน') ||
-          val.includes('organization')
+          lower.includes('organization')
         ) {
           tempOrg = j;
           score += 8;
+        } else if (
+          val.includes('สถานที่จัดอบรม') ||
+          val.includes('สถานที่อบรม') ||
+          val.includes('สถานที่จัดงาน') ||
+          val === 'สถานที่' ||
+          lower.includes('traininglocation') ||
+          lower === 'location'
+        ) {
+          tempTrainingLoc = j;
+          score += 8;
         }
-        if (val.includes('หมายเหตุ') || val.includes('note') || val.includes('remark')) {
+        if (
+          val.includes('วันที่ลงนาม') ||
+          val.includes('วันลงนาม') ||
+          val.includes('ลงนาม') ||
+          lower.includes('signeddate')
+        ) {
+          tempSignedDate = j;
+          score += 8;
+        } else if (
+          val.includes('วันที่จัดอบรม') ||
+          val.includes('วันที่อบรม') ||
+          val.includes('วันที่จัดงาน') ||
+          val.includes('วันจัดอบรม') ||
+          lower.includes('trainingdate') ||
+          lower.includes('eventdate')
+        ) {
+          tempTrainingDate = j;
+          score += 8;
+        }
+        if (val.includes('หมายเหตุ') || lower.includes('note') || lower.includes('remark')) {
           tempNote = j;
           score += 5;
         }
@@ -129,9 +181,13 @@ export async function POST(request: NextRequest) {
         bestHeaderRowIdx = i;
         const hasSeparateNames = tempFirst !== -1 && tempLast !== -1;
         bestCols = {
+          nationalIdColIdx: tempNationalId,
           certColIdx: tempCert,
           nameColIdx: tempName !== -1 ? tempName : (hasSeparateNames ? -1 : tempFirst),
           orgColIdx: tempOrg,
+          trainingLocationColIdx: tempTrainingLoc,
+          trainingDateColIdx: tempTrainingDate,
+          signedDateColIdx: tempSignedDate,
           noteColIdx: tempNote,
           prefixColIdx: tempPref,
           firstNameColIdx: tempFirst,
@@ -141,7 +197,19 @@ export async function POST(request: NextRequest) {
     }
 
     let headerRowIdx = bestHeaderRowIdx >= 0 ? bestHeaderRowIdx : 0;
-    let { certColIdx, nameColIdx, orgColIdx, noteColIdx, prefixColIdx, firstNameColIdx, lastNameColIdx } = bestCols;
+    let {
+      nationalIdColIdx,
+      certColIdx,
+      nameColIdx,
+      orgColIdx,
+      trainingLocationColIdx,
+      trainingDateColIdx,
+      signedDateColIdx,
+      noteColIdx,
+      prefixColIdx,
+      firstNameColIdx,
+      lastNameColIdx,
+    } = bestCols;
 
     // Inspect first 30 rows as raw rows for interactive UI
     const rawRows = allRows.slice(0, 30).map((row, rowIdx) => {
@@ -191,7 +259,17 @@ export async function POST(request: NextRequest) {
       }
 
       const fullName = rawName.replace(/\s+/g, ' ');
+      const nationalId =
+        nationalIdColIdx !== -1 && r[nationalIdColIdx] !== undefined
+          ? String(r[nationalIdColIdx]).replace(/[-\s]/g, '').trim()
+          : null;
       const organization = orgColIdx !== -1 && r[orgColIdx] ? String(r[orgColIdx]).trim() : null;
+      const trainingLocation =
+        trainingLocationColIdx !== -1 && r[trainingLocationColIdx] ? String(r[trainingLocationColIdx]).trim() : null;
+      const trainingDate =
+        trainingDateColIdx !== -1 && r[trainingDateColIdx] ? String(r[trainingDateColIdx]).trim() : null;
+      const signedDate =
+        signedDateColIdx !== -1 && r[signedDateColIdx] ? String(r[signedDateColIdx]).trim() : null;
       const note = noteColIdx !== -1 && r[noteColIdx] ? String(r[noteColIdx]).trim() : null;
 
       if (fullName || certNumber) {
@@ -199,10 +277,14 @@ export async function POST(request: NextRequest) {
         if (previewList.length < 15) {
           previewList.push({
             rowNumber: i + 1,
+            nationalId,
             certNumber,
             fullName,
             rawName,
             organization,
+            trainingLocation,
+            trainingDate,
+            signedDate,
             note,
             allValues: r.map((c) => (c !== undefined && c !== null ? String(c).trim() : '')),
           });
@@ -221,9 +303,13 @@ export async function POST(request: NextRequest) {
         detectedHeaderRow: headerRowIdx,
         headerValues,
         detectedColumns: {
+          nationalIdColIdx,
           certColIdx,
           nameColIdx,
           orgColIdx,
+          trainingLocationColIdx,
+          trainingDateColIdx,
+          signedDateColIdx,
           noteColIdx,
           prefixColIdx,
           firstNameColIdx,

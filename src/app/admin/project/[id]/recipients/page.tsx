@@ -31,7 +31,10 @@ import {
   Download,
   ExternalLink,
   X,
-  FileDown
+  FileDown,
+  MapPin,
+  Calendar,
+  CreditCard
 } from 'lucide-react';
 import Pagination from '@/components/Pagination';
 import BatchPdfModal from '@/components/BatchPdfModal';
@@ -46,9 +49,13 @@ interface ProjectInfo {
 
 interface RecipientItem {
   id: string;
+  nationalId?: string | null;
   certNumber: string;
   fullName: string;
   organization: string | null;
+  trainingLocation?: string | null;
+  trainingDate?: string | null;
+  signedDate?: string | null;
   note: string | null;
   issuedDate: string;
 }
@@ -133,10 +140,22 @@ export default function RecipientsManagementPage() {
   const [firstNameColIdx, setFirstNameColIdx] = useState<number>(-1);
   const [lastNameColIdx, setLastNameColIdx] = useState<number>(-1);
 
+  // National ID Mapping (13 digits)
+  const [nationalIdColIdx, setNationalIdColIdx] = useState<number>(-1);
+
   // Organization Mapping
   const [orgMode, setOrgMode] = useState<'column' | 'sheetName' | 'fixed' | 'none'>('column');
   const [orgColIdx, setOrgColIdx] = useState<number>(-1);
   const [orgFixedValue, setOrgFixedValue] = useState<string>('');
+
+  // Training Location, Training Date, Signed Date Mapping
+  const [trainingLocationMode, setTrainingLocationMode] = useState<'column' | 'project' | 'none'>('column');
+  const [trainingLocationColIdx, setTrainingLocationColIdx] = useState<number>(-1);
+  const [trainingDateMode, setTrainingDateMode] = useState<'column' | 'project' | 'none'>('column');
+  const [trainingDateColIdx, setTrainingDateColIdx] = useState<number>(-1);
+  const [signedDateMode, setSignedDateMode] = useState<'column' | 'fixed' | 'none'>('column');
+  const [signedDateColIdx, setSignedDateColIdx] = useState<number>(-1);
+  const [signedDateFixedValue, setSignedDateFixedValue] = useState<string>('');
 
   // Note Mapping
   const [noteMode, setNoteMode] = useState<'column' | 'includeAllExtra' | 'none'>('column');
@@ -236,6 +255,8 @@ export default function RecipientsManagementPage() {
         setHeaderRowIdx(detectedH);
 
         const cols = d.detectedColumns || {};
+        setNationalIdColIdx(cols.nationalIdColIdx >= 0 ? cols.nationalIdColIdx : -1);
+
         if (cols.certColIdx >= 0) {
           setCertMode('column');
           setCertColIdx(cols.certColIdx);
@@ -269,6 +290,30 @@ export default function RecipientsManagementPage() {
         } else {
           setOrgMode('none');
           setOrgColIdx(-1);
+        }
+
+        if (cols.trainingLocationColIdx >= 0) {
+          setTrainingLocationMode('column');
+          setTrainingLocationColIdx(cols.trainingLocationColIdx);
+        } else {
+          setTrainingLocationMode('project');
+          setTrainingLocationColIdx(-1);
+        }
+
+        if (cols.trainingDateColIdx >= 0) {
+          setTrainingDateMode('column');
+          setTrainingDateColIdx(cols.trainingDateColIdx);
+        } else {
+          setTrainingDateMode('project');
+          setTrainingDateColIdx(-1);
+        }
+
+        if (cols.signedDateColIdx >= 0) {
+          setSignedDateMode('column');
+          setSignedDateColIdx(cols.signedDateColIdx);
+        } else {
+          setSignedDateMode('none');
+          setSignedDateColIdx(-1);
         }
 
         if (d.sheetNames && d.sheetNames.length > 1) {
@@ -335,9 +380,13 @@ export default function RecipientsManagementPage() {
     const rowsAfterHeader = previewData.rawRows.filter((r) => r.rowIndex > headerRowIdx);
     const result: Array<{
       rowNumber: number;
+      nationalId: string;
       certNumber: string;
       fullName: string;
       organization: string;
+      trainingLocation: string;
+      trainingDate: string;
+      signedDate: string;
       note: string;
     }> = [];
 
@@ -359,6 +408,12 @@ export default function RecipientsManagementPage() {
       }
 
       if (!fullName) continue;
+
+      // National ID (13 digits)
+      const nationalId =
+        nationalIdColIdx >= 0 && r[nationalIdColIdx]
+          ? r[nationalIdColIdx].replace(/[-\s]/g, '').trim()
+          : '-';
 
       // Cert Number
       let certNumber = '';
@@ -382,18 +437,44 @@ export default function RecipientsManagementPage() {
         organization = project.location;
       }
 
+      // Training Location, Training Date, Signed Date
+      let trainingLocation = '-';
+      if (trainingLocationMode === 'column' && trainingLocationColIdx >= 0 && r[trainingLocationColIdx]) {
+        trainingLocation = r[trainingLocationColIdx].trim();
+      } else if (trainingLocationMode !== 'none' && project?.location) {
+        trainingLocation = project.location;
+      }
+
+      let trainingDate = '-';
+      if (trainingDateMode === 'column' && trainingDateColIdx >= 0 && r[trainingDateColIdx]) {
+        trainingDate = r[trainingDateColIdx].trim();
+      } else if (trainingDateMode !== 'none' && project?.eventDate) {
+        trainingDate = project.eventDate;
+      }
+
+      let signedDate = '-';
+      if (signedDateMode === 'column' && signedDateColIdx >= 0 && r[signedDateColIdx]) {
+        signedDate = r[signedDateColIdx].trim();
+      } else if (signedDateMode === 'fixed' && signedDateFixedValue.trim()) {
+        signedDate = signedDateFixedValue.trim();
+      }
+
       // Note
       let note = '-';
       if (noteMode === 'column' && noteColIdx >= 0 && r[noteColIdx]) {
         note = r[noteColIdx].trim();
       } else if (noteMode === 'includeAllExtra') {
         const mappedIndices = new Set([
+          nationalIdColIdx,
           certColIdx,
           nameColIdx,
           prefixColIdx,
           firstNameColIdx,
           lastNameColIdx,
           orgColIdx,
+          trainingLocationColIdx,
+          trainingDateColIdx,
+          signedDateColIdx,
           noteColIdx,
         ]);
         const extras: string[] = [];
@@ -413,9 +494,13 @@ export default function RecipientsManagementPage() {
 
       result.push({
         rowNumber: row.rowIndex + 1,
+        nationalId: nationalId || '-',
         certNumber,
         fullName,
         organization,
+        trainingLocation,
+        trainingDate,
+        signedDate,
         note,
       });
 
@@ -426,6 +511,7 @@ export default function RecipientsManagementPage() {
   }, [
     previewData,
     headerRowIdx,
+    nationalIdColIdx,
     certMode,
     certColIdx,
     autoCertPrefix,
@@ -439,6 +525,13 @@ export default function RecipientsManagementPage() {
     orgMode,
     orgColIdx,
     orgFixedValue,
+    trainingLocationMode,
+    trainingLocationColIdx,
+    trainingDateMode,
+    trainingDateColIdx,
+    signedDateMode,
+    signedDateColIdx,
+    signedDateFixedValue,
     noteMode,
     noteColIdx,
     project,
@@ -475,10 +568,22 @@ export default function RecipientsManagementPage() {
       fd.append('firstNameColIdx', firstNameColIdx.toString());
       fd.append('lastNameColIdx', lastNameColIdx.toString());
 
+      // National ID mapping
+      fd.append('nationalIdColIdx', nationalIdColIdx.toString());
+
       // Org mappings
       fd.append('orgMode', orgMode);
       fd.append('orgColIdx', orgColIdx.toString());
       fd.append('orgFixedValue', orgFixedValue);
+
+      // Training Location, Training Date, Signed Date mappings
+      fd.append('trainingLocationMode', trainingLocationMode);
+      fd.append('trainingLocationColIdx', trainingLocationColIdx.toString());
+      fd.append('trainingDateMode', trainingDateMode);
+      fd.append('trainingDateColIdx', trainingDateColIdx.toString());
+      fd.append('signedDateMode', signedDateMode);
+      fd.append('signedDateColIdx', signedDateColIdx.toString());
+      fd.append('signedDateFixedValue', signedDateFixedValue);
 
       // Note mappings
       fd.append('noteMode', noteMode);
@@ -719,10 +824,15 @@ export default function RecipientsManagementPage() {
               </span>
               <span className="text-xs text-slate-700 font-medium">
                 <span className="text-cmtc-800 font-bold">ลำดับ</span> |{' '}
+                <span className="text-indigo-700 font-bold">เลข 13 หลัก</span> |{' '}
                 <span className="text-emerald-700 font-bold">ชื่อ</span> |{' '}
                 <span className="text-emerald-700 font-bold">นามสกุล</span> |{' '}
                 <span className="text-sky-700 font-bold">สถานศึกษา</span> |{' '}
-                <span className="text-cmtc-800 font-bold">ทะเบียน</span>
+                <span className="text-cmtc-800 font-bold">ทะเบียน</span> |{' '}
+                <span className="text-slate-700 font-bold">สถานที่จัดอบรม</span> |{' '}
+                <span className="text-slate-700 font-bold">วันที่จัดอบรม</span> |{' '}
+                <span className="text-slate-700 font-bold">วันที่ลงนาม</span> |{' '}
+                <span className="text-rose-700 font-bold">หมายเหตุ</span>
               </span>
             </div>
             <a
@@ -1265,6 +1375,239 @@ export default function RecipientsManagementPage() {
                     </p>
                   )}
                 </div>
+
+                {/* 5. เลข 13 หลัก (National ID) */}
+                <div className="glass-card p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-indigo-700 flex items-center gap-1.5">
+                      <CreditCard className="w-4 h-4 text-indigo-600" />
+                      เลขประจำตัวประชาชน 13 หลัก
+                    </label>
+                    <span className="text-[10px] uppercase px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 font-mono font-semibold">
+                      nationalId
+                    </span>
+                  </div>
+                  <select
+                    value={nationalIdColIdx}
+                    onChange={(e) => setNationalIdColIdx(Number(e.target.value))}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:ring-2 focus:ring-indigo-600 focus:outline-none transition-all shadow-xs"
+                  >
+                    <option value={-1}>-- ไม่ระบุ --</option>
+                    {activeColumnHeaders.map((col) => (
+                      <option key={col.index} value={col.index}>
+                        {col.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[11px] text-slate-500">
+                    ใช้สำหรับให้ผู้รับเกียรติบัตรค้นหาเกียรติบัตรของตนเองจากหน้าแรก (ตัดขีดคั่นให้อัตโนมัติ)
+                  </p>
+                </div>
+
+                {/* 6. สถานที่จัดอบรม */}
+                <div className="glass-card p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-teal-700 flex items-center gap-1.5">
+                      <MapPin className="w-4 h-4 text-teal-600" />
+                      สถานที่จัดอบรม
+                    </label>
+                    <span className="text-[10px] uppercase px-2 py-0.5 rounded bg-teal-50 text-teal-700 border border-teal-200 font-mono font-semibold">
+                      location
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1.5 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setTrainingLocationMode('column')}
+                      className={`py-1.5 px-1.5 rounded-lg font-medium text-center text-[11px] transition-all ${
+                        trainingLocationMode === 'column'
+                          ? 'bg-teal-600 text-white font-bold shadow-xs'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      เลือกจาก Excel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTrainingLocationMode('project')}
+                      className={`py-1.5 px-1.5 rounded-lg font-medium text-center text-[11px] transition-all ${
+                        trainingLocationMode === 'project'
+                          ? 'bg-teal-600 text-white font-bold shadow-xs'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      ใช้ค่าโครงการ
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTrainingLocationMode('none')}
+                      className={`py-1.5 px-1.5 rounded-lg font-medium text-center text-[11px] transition-all ${
+                        trainingLocationMode === 'none'
+                          ? 'bg-teal-600 text-white font-bold shadow-xs'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      ไม่ระบุ
+                    </button>
+                  </div>
+                  {trainingLocationMode === 'column' && (
+                    <select
+                      value={trainingLocationColIdx}
+                      onChange={(e) => setTrainingLocationColIdx(Number(e.target.value))}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:ring-2 focus:ring-teal-600 focus:outline-none transition-all shadow-xs"
+                    >
+                      <option value={-1}>-- ใช้ค่าจากโครงการ ({project?.location || 'ไม่มี'}) --</option>
+                      {activeColumnHeaders.map((col) => (
+                        <option key={col.index} value={col.index}>
+                          {col.label}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {trainingLocationMode === 'project' && (
+                    <p className="text-[11px] text-slate-600 py-1">
+                      ใช้สถานที่ของโครงการ: <strong>{project?.location || 'ยังไม่ได้ระบุ'}</strong>
+                    </p>
+                  )}
+                </div>
+
+                {/* 7. วันที่จัดอบรม */}
+                <div className="glass-card p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-amber-700 flex items-center gap-1.5">
+                      <Calendar className="w-4 h-4 text-amber-600" />
+                      วันที่จัดอบรม
+                    </label>
+                    <span className="text-[10px] uppercase px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 font-mono font-semibold">
+                      eventDate
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1.5 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setTrainingDateMode('column')}
+                      className={`py-1.5 px-1.5 rounded-lg font-medium text-center text-[11px] transition-all ${
+                        trainingDateMode === 'column'
+                          ? 'bg-amber-600 text-white font-bold shadow-xs'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      เลือกจาก Excel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTrainingDateMode('project')}
+                      className={`py-1.5 px-1.5 rounded-lg font-medium text-center text-[11px] transition-all ${
+                        trainingDateMode === 'project'
+                          ? 'bg-amber-600 text-white font-bold shadow-xs'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      ใช้ค่าโครงการ
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTrainingDateMode('none')}
+                      className={`py-1.5 px-1.5 rounded-lg font-medium text-center text-[11px] transition-all ${
+                        trainingDateMode === 'none'
+                          ? 'bg-amber-600 text-white font-bold shadow-xs'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      ไม่ระบุ
+                    </button>
+                  </div>
+                  {trainingDateMode === 'column' && (
+                    <select
+                      value={trainingDateColIdx}
+                      onChange={(e) => setTrainingDateColIdx(Number(e.target.value))}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-600 focus:outline-none transition-all shadow-xs"
+                    >
+                      <option value={-1}>-- ใช้ค่าจากโครงการ ({project?.eventDate || 'ไม่มี'}) --</option>
+                      {activeColumnHeaders.map((col) => (
+                        <option key={col.index} value={col.index}>
+                          {col.label}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {trainingDateMode === 'project' && (
+                    <p className="text-[11px] text-slate-600 py-1">
+                      ใช้วันที่ของโครงการ: <strong>{project?.eventDate || 'ยังไม่ได้ระบุ'}</strong>
+                    </p>
+                  )}
+                </div>
+
+                {/* 8. วันที่ลงนาม */}
+                <div className="glass-card p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-purple-700 flex items-center gap-1.5">
+                      <Calendar className="w-4 h-4 text-purple-600" />
+                      วันที่ลงนาม
+                    </label>
+                    <span className="text-[10px] uppercase px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 font-mono font-semibold">
+                      signedDate
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1.5 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setSignedDateMode('column')}
+                      className={`py-1.5 px-1.5 rounded-lg font-medium text-center text-[11px] transition-all ${
+                        signedDateMode === 'column'
+                          ? 'bg-purple-600 text-white font-bold shadow-xs'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      เลือกจาก Excel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSignedDateMode('fixed')}
+                      className={`py-1.5 px-1.5 rounded-lg font-medium text-center text-[11px] transition-all ${
+                        signedDateMode === 'fixed'
+                          ? 'bg-purple-600 text-white font-bold shadow-xs'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      กำหนดค่าเอง
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSignedDateMode('none')}
+                      className={`py-1.5 px-1.5 rounded-lg font-medium text-center text-[11px] transition-all ${
+                        signedDateMode === 'none'
+                          ? 'bg-purple-600 text-white font-bold shadow-xs'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      ไม่ระบุ
+                    </button>
+                  </div>
+                  {signedDateMode === 'column' && (
+                    <select
+                      value={signedDateColIdx}
+                      onChange={(e) => setSignedDateColIdx(Number(e.target.value))}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:ring-2 focus:ring-purple-600 focus:outline-none transition-all shadow-xs"
+                    >
+                      <option value={-1}>-- ไม่ระบุ --</option>
+                      {activeColumnHeaders.map((col) => (
+                        <option key={col.index} value={col.index}>
+                          {col.label}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {signedDateMode === 'fixed' && (
+                    <input
+                      type="text"
+                      value={signedDateFixedValue}
+                      onChange={(e) => setSignedDateFixedValue(e.target.value)}
+                      placeholder="เช่น 15 พฤษภาคม 2569"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:ring-2 focus:ring-purple-600 focus:outline-none transition-all shadow-xs"
+                    />
+                  )}
+                </div>
               </div>
             </div>
 
@@ -1289,17 +1632,21 @@ export default function RecipientsManagementPage() {
                 <table className="w-full text-xs text-left">
                   <thead className="bg-slate-50 text-slate-600 border-b border-slate-200 font-semibold">
                     <tr>
-                      <th className="py-2.5 px-3 w-16">แถว</th>
+                      <th className="py-2.5 px-3 w-14">แถว</th>
+                      <th className="py-2.5 px-3 text-indigo-700">เลข 13 หลัก</th>
                       <th className="py-2.5 px-3 text-cmtc-800">เลขทะเบียน</th>
                       <th className="py-2.5 px-3 text-emerald-700">ชื่อ - นามสกุล</th>
                       <th className="py-2.5 px-3 text-sky-700">สถานศึกษา / สังกัด</th>
+                      <th className="py-2.5 px-3 text-teal-700">สถานที่จัดอบรม</th>
+                      <th className="py-2.5 px-3 text-amber-700">วันที่จัดอบรม</th>
+                      <th className="py-2.5 px-3 text-purple-700">วันที่ลงนาม</th>
                       <th className="py-2.5 px-3 text-slate-600">หมายเหตุ</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-slate-800">
                     {livePreviewList.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="py-6 text-center text-slate-500 italic">
+                        <td colSpan={9} className="py-6 text-center text-slate-500 italic">
                           ยังไม่มีแถวข้อมูลที่ตรงกับการจับคู่คอลัมน์ กรุณาเลือกคอลัมน์ชื่อ-นามสกุลให้ถูกต้อง
                         </td>
                       </tr>
@@ -1307,6 +1654,7 @@ export default function RecipientsManagementPage() {
                       livePreviewList.map((row) => (
                         <tr key={row.rowNumber} className="hover:bg-slate-50/70">
                           <td className="py-2.5 px-3 font-mono text-slate-400">{row.rowNumber}</td>
+                          <td className="py-2.5 px-3 font-mono text-indigo-700 text-[11px]">{row.nationalId}</td>
                           <td className="py-2.5 px-3">
                             <span className="font-mono text-cmtc-800 font-bold bg-red-50/80 px-2 py-0.5 rounded border border-red-100/80 inline-block">
                               {row.certNumber}
@@ -1314,6 +1662,9 @@ export default function RecipientsManagementPage() {
                           </td>
                           <td className="py-2.5 px-3 text-slate-900 font-semibold">{row.fullName}</td>
                           <td className="py-2.5 px-3 text-slate-700">{row.organization}</td>
+                          <td className="py-2.5 px-3 text-slate-600">{row.trainingLocation}</td>
+                          <td className="py-2.5 px-3 text-slate-600">{row.trainingDate}</td>
+                          <td className="py-2.5 px-3 text-slate-600">{row.signedDate}</td>
                           <td className="py-2.5 px-3 text-slate-500 max-w-xs truncate">{row.note}</td>
                         </tr>
                       ))
@@ -1520,7 +1871,7 @@ export default function RecipientsManagementPage() {
                   setSearch(e.target.value);
                   setCurrentPage(1);
                 }}
-                placeholder="ค้นหาชื่อ หรือเลขทะเบียน..."
+                placeholder="ค้นหาชื่อ, เลขทะเบียน, หรือเลข 13 หลัก..."
                 className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 text-xs text-slate-900 placeholder:text-slate-400 border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-cmtc-700 shadow-xs transition-all"
               />
             </div>
@@ -1541,8 +1892,10 @@ export default function RecipientsManagementPage() {
               <thead className="bg-slate-50 text-slate-600 border-b border-slate-200 font-semibold">
                 <tr>
                   <th className="py-3 px-4">เลขทะเบียน</th>
+                  <th className="py-3 px-4">เลข 13 หลัก</th>
                   <th className="py-3 px-4">ชื่อ-นามสกุล</th>
                   <th className="py-3 px-4">สถานศึกษา</th>
+                  <th className="py-3 px-4">สถานที่ / วันที่</th>
                   <th className="py-3 px-4">หมายเหตุ</th>
                   <th className="py-3 px-4 text-right">การจัดการ</th>
                 </tr>
@@ -1555,11 +1908,19 @@ export default function RecipientsManagementPage() {
                         {recip.certNumber}
                       </span>
                     </td>
+                    <td className="py-2.5 px-4 font-mono text-indigo-700 text-[11px]">
+                      {recip.nationalId || '-'}
+                    </td>
                     <td className="py-2.5 px-4 text-slate-900 font-semibold">
                       {recip.fullName}
                     </td>
                     <td className="py-2.5 px-4 text-slate-600">
                       {recip.organization || '-'}
+                    </td>
+                    <td className="py-2.5 px-4 text-slate-500 text-[11px]">
+                      {[recip.trainingLocation, recip.trainingDate, recip.signedDate ? `ลงนาม ${recip.signedDate}` : null]
+                        .filter(Boolean)
+                        .join(' • ') || '-'}
                     </td>
                     <td className="py-2.5 px-4 text-slate-500">
                       {recip.note || '-'}
