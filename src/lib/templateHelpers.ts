@@ -45,6 +45,59 @@ export interface TextResolveProject {
   location?: string | null;
 }
 
+const THAI_MONTHS_FULL = [
+  'มกราคม',
+  'กุมภาพันธ์',
+  'มีนาคม',
+  'เมษายน',
+  'พฤษภาคม',
+  'มิถุนายน',
+  'กรกฎาคม',
+  'สิงหาคม',
+  'กันยายน',
+  'ตุลาคม',
+  'พฤศจิกายน',
+  'ธันวาคม',
+];
+
+/**
+ * Format an Excel numeric date serial (e.g. 244483 or 46156) into a Thai full-month date
+ * string ("14 พฤษภาคม 2569"), automatically handling both AD and Buddhist-Era Excel serials.
+ */
+export function formatExcelSerialToThaiDate(serial: number): string {
+  const days = Math.floor(serial);
+  const utc = Date.UTC(1899, 11, 30) + days * 86400000;
+  const d = new Date(utc);
+  const day = d.getUTCDate();
+  const monthName = THAI_MONTHS_FULL[d.getUTCMonth()];
+  const rawYear = d.getUTCFullYear();
+  const beYear = rawYear < 2400 ? rawYear + 543 : rawYear;
+  return `${day} ${monthName} ${beYear}`;
+}
+
+/**
+ * Convert an Excel date serial (stored as number or numeric string) or Date object
+ * into a readable Thai date string; non-serial strings pass through unchanged.
+ */
+export function normalizeThaiDateValue(value: unknown): string {
+  if (value === undefined || value === null) return '';
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    const rawYear = value.getFullYear();
+    const beYear = rawYear < 2400 ? rawYear + 543 : rawYear;
+    return `${value.getDate()} ${THAI_MONTHS_FULL[value.getMonth()]} ${beYear}`;
+  }
+  const str = String(value).trim();
+  if (!str) return '';
+  // Plausible Excel date serial range (~1954 to ~2994 AD/BE: 20000..400000)
+  if (/^\d{5,6}(\.\d+)?$/.test(str)) {
+    const num = Number(str);
+    if (Number.isFinite(num) && num >= 20000 && num <= 400000) {
+      return formatExcelSerialToThaiDate(num);
+    }
+  }
+  return str;
+}
+
 /**
  * Resolve dynamic field value and {placeholder} substitutions consistently
  * across Visual Editor preview, server PNG/PDF renderer, and client batch PDF.
@@ -55,8 +108,8 @@ export function resolveCertificateElementText(
   project: TextResolveProject
 ): string {
   const resolvedLocation = recipient.trainingLocation || project.location || '';
-  const resolvedDate = recipient.trainingDate || project.eventDate || '';
-  const resolvedSignedDate = recipient.signedDate || '';
+  const resolvedDate = normalizeThaiDateValue(recipient.trainingDate || project.eventDate || '');
+  const resolvedSignedDate = normalizeThaiDateValue(recipient.signedDate || '');
 
   let text = '';
   if (el.elementType === 'dynamic') {

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { authorizeProjectAccess } from '@/lib/auth';
 import * as xlsx from 'xlsx';
+import { normalizeWorksheetDateCells } from '@/lib/excelDateHelper';
+import { normalizeThaiDateValue } from '@/lib/templateHelpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -103,6 +105,7 @@ export async function POST(request: NextRequest) {
       const worksheet = workbook.Sheets[currentSheetName];
       if (!worksheet) continue;
 
+      normalizeWorksheetDateCells(worksheet);
       const rows = xlsx.utils.sheet_to_json<any[]>(worksheet, { header: 1 });
       if (!rows || rows.length === 0) continue;
 
@@ -210,17 +213,17 @@ export async function POST(request: NextRequest) {
 
         let trainingDate: string | null = null;
         if (trainingDateMode === 'column' && trainingDateColIdx >= 0 && r[trainingDateColIdx]) {
-          trainingDate = String(r[trainingDateColIdx]).trim() || null;
+          trainingDate = normalizeThaiDateValue(r[trainingDateColIdx]) || null;
         }
         if (!trainingDate && trainingDateMode !== 'none' && project.eventDate) {
-          trainingDate = project.eventDate;
+          trainingDate = normalizeThaiDateValue(project.eventDate) || null;
         }
 
         let signedDate: string | null = null;
         if (signedDateMode === 'column' && signedDateColIdx >= 0 && r[signedDateColIdx]) {
-          signedDate = String(r[signedDateColIdx]).trim() || null;
+          signedDate = normalizeThaiDateValue(r[signedDateColIdx]) || null;
         } else if (signedDateMode === 'fixed' && signedDateFixedValue.trim()) {
-          signedDate = signedDateFixedValue.trim();
+          signedDate = normalizeThaiDateValue(signedDateFixedValue) || null;
         }
 
         // 4. Resolve Note

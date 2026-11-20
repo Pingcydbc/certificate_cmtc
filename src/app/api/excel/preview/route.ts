@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as xlsx from 'xlsx';
+import { normalizeWorksheetDateCells } from '@/lib/excelDateHelper';
+import { normalizeThaiDateValue } from '@/lib/templateHelpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,6 +37,7 @@ export async function POST(request: NextRequest) {
       : sheetNames[0];
 
     const worksheet = workbook.Sheets[activeSheetName];
+    normalizeWorksheetDateCells(worksheet);
     const allRows = xlsx.utils.sheet_to_json<any[]>(worksheet, { header: 1 });
 
     if (!allRows || allRows.length === 0) {
@@ -267,9 +270,9 @@ export async function POST(request: NextRequest) {
       const trainingLocation =
         trainingLocationColIdx !== -1 && r[trainingLocationColIdx] ? String(r[trainingLocationColIdx]).trim() : null;
       const trainingDate =
-        trainingDateColIdx !== -1 && r[trainingDateColIdx] ? String(r[trainingDateColIdx]).trim() : null;
+        trainingDateColIdx !== -1 && r[trainingDateColIdx] ? normalizeThaiDateValue(r[trainingDateColIdx]) : null;
       const signedDate =
-        signedDateColIdx !== -1 && r[signedDateColIdx] ? String(r[signedDateColIdx]).trim() : null;
+        signedDateColIdx !== -1 && r[signedDateColIdx] ? normalizeThaiDateValue(r[signedDateColIdx]) : null;
       const note = noteColIdx !== -1 && r[noteColIdx] ? String(r[noteColIdx]).trim() : null;
 
       if (fullName || certNumber) {

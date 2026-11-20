@@ -38,6 +38,7 @@ import {
 } from 'lucide-react';
 import Pagination from '@/components/Pagination';
 import BatchPdfModal from '@/components/BatchPdfModal';
+import { normalizeThaiDateValue } from '@/lib/templateHelpers';
 
 interface ProjectInfo {
   id: string;
@@ -447,16 +448,16 @@ export default function RecipientsManagementPage() {
 
       let trainingDate = '-';
       if (trainingDateMode === 'column' && trainingDateColIdx >= 0 && r[trainingDateColIdx]) {
-        trainingDate = r[trainingDateColIdx].trim();
+        trainingDate = normalizeThaiDateValue(r[trainingDateColIdx]);
       } else if (trainingDateMode !== 'none' && project?.eventDate) {
-        trainingDate = project.eventDate;
+        trainingDate = normalizeThaiDateValue(project.eventDate);
       }
 
       let signedDate = '-';
       if (signedDateMode === 'column' && signedDateColIdx >= 0 && r[signedDateColIdx]) {
-        signedDate = r[signedDateColIdx].trim();
+        signedDate = normalizeThaiDateValue(r[signedDateColIdx]);
       } else if (signedDateMode === 'fixed' && signedDateFixedValue.trim()) {
-        signedDate = signedDateFixedValue.trim();
+        signedDate = normalizeThaiDateValue(signedDateFixedValue);
       }
 
       // Note
@@ -1918,7 +1919,11 @@ export default function RecipientsManagementPage() {
                       {recip.organization || '-'}
                     </td>
                     <td className="py-2.5 px-4 text-slate-500 text-[11px]">
-                      {[recip.trainingLocation, recip.trainingDate, recip.signedDate ? `ลงนาม ${recip.signedDate}` : null]
+                      {[
+                        recip.trainingLocation,
+                        recip.trainingDate ? normalizeThaiDateValue(recip.trainingDate) : null,
+                        recip.signedDate ? `ลงนาม ${normalizeThaiDateValue(recip.signedDate)}` : null,
+                      ]
                         .filter(Boolean)
                         .join(' • ') || '-'}
                     </td>
