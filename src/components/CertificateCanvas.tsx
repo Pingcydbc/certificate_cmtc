@@ -3,6 +3,7 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import QRCode from 'qrcode';
 import { resolveCertificateElementText } from '@/lib/templateHelpers';
+import { ensureCertificateFontsLoaded } from '@/lib/browserFonts';
 import {
   Move,
   Type,
@@ -1087,13 +1088,14 @@ export default function CertificateCanvas({
     const redraw = () => {
       if (active) drawCanvas();
     };
+    ensureCertificateFontsLoaded(elements).then(redraw);
     document.fonts.ready.then(redraw);
     document.fonts.addEventListener?.('loadingdone', redraw);
     return () => {
       active = false;
       document.fonts.removeEventListener?.('loadingdone', redraw);
     };
-  }, [drawCanvas]);
+  }, [drawCanvas, elements]);
 
   // Pointer & Mouse coordinates relative to Canvas
   const getCanvasCoords = (e: React.PointerEvent<HTMLCanvasElement>) => {

@@ -3,6 +3,7 @@
 import { PDFDocument } from 'pdf-lib';
 import QRCode from 'qrcode';
 import { resolveCertificateElementText } from '@/lib/templateHelpers';
+import { ensureCertificateFontsLoaded } from '@/lib/browserFonts';
 
 export interface BatchTemplateElement {
   id: string;
@@ -206,9 +207,7 @@ export async function generateBatchCertificatePdf(
   const { project, template, recipients } = data;
   const { onProgress, signal } = options;
 
-  if (typeof document !== 'undefined' && 'fonts' in document) {
-    await document.fonts.ready;
-  }
+  await ensureCertificateFontsLoaded(template.elements);
 
   const scale = 2;
   const baseW = template.width || 990;
